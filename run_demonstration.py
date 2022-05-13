@@ -1,7 +1,5 @@
 import sys
 import os
-# relative imports can be used when the repository is a package
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Flowsheet_Class.flowsheet import Flowsheet
 import networkx as nx
 
@@ -46,4 +44,17 @@ flowsheet_2 = Flowsheet()
 flowsheet_2.sfiles_list = sfiles_list
 flowsheet_2.create_from_sfiles()
 flowsheet_2.convert_to_sfiles(version='v2')
-flowsheet_2.sfiles
+print(flowsheet_2.sfiles)
+
+flowsheet_2=Flowsheet()
+sfiles_in="(raw)(flash)[{tout}(prod)]{bout}(splt)[(prod)](r)<&|(raw)(flash){tout}&{bout}(prod)|(prod)" # has to be valid according to SFILES rules
+flowsheet_2.create_from_sfiles(sfiles_in)
+flowsheet_2.visualize_flowsheet(table=False, pfd_path='plots/flowsheet3', plot_with_stream_labels=False)
+
+# Check if conversion back works
+flowsheet_2.sfiles=""
+flowsheet_2.convert_to_sfiles(version='v2')
+if sfiles_in==flowsheet_2.sfiles:
+    print('Conversion back successful')
+else:
+    print('Conversion back produced a different SFILES string. Input:', sfiles_in, 'Output:', flowsheet_2.sfiles)

@@ -322,9 +322,7 @@ class Flowsheet:
         random_flowsheet = Generate_flowsheet()
         
         for name in random_flowsheet.nodes:
-            category = name.split(sep='-')[0]
-            specific_category = name.split(sep='-')[0]
-            self.add_unit(unit_category=category,specific_unit_category=specific_category, unique_name=name)
+            self.add_unit(unique_name=name)
 
         for connection in random_flowsheet.edges:
             # adjust tags: tags:[..] to tags:{'he':[..],'col':[..]}

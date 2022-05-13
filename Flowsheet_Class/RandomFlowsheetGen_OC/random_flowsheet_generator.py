@@ -15,7 +15,6 @@ from matplotlib.pyplot import connect
 import networkx as nx
 import random
 
-from torch import inference_mode
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from Flowsheet_Class.RandomFlowsheetGen_OC.patterns import purification_patterns, thermal_sep_patterns, filtration_patterns, centr_patterns, detergent_patterns, reactor_patterns, addR_patterns, CC_sep_patterns
