@@ -5,7 +5,7 @@
 
 """
 This Python class creates a random flowsheet graph
-using several random sequences (kind of markov chains). 
+using several random sequences (markov chain like). 
 Some of the process patterns are derived from the pattern recognition paper: 
 Zhang, T., Sahinidis, N. V., & Siirola, J. J. (2019). Pattern recognition in chemical process flowsheets. AIChE Journal, 65(2), 592-603.
 """
