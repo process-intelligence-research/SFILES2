@@ -4,6 +4,7 @@
 import networkx as nx
 import re
 
+
 """
 Exposes functionality for writing SFILES (Simplified flowsheet input line entry system) strings
 Based on
@@ -39,20 +40,15 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags, init_node=None):
 
     # If no initial node is provided, select the node with lowest rank and no predecessors
     if not init_node:
-        init_nodes = []
-        for n in flowsheet.nodes:
-            predeccs=list(flowsheet.predecessors(n))
-            # New raw material
-            if len(predeccs) == 0:
-                init_nodes.append(n)
+        init_nodes = [n for n, d in flowsheet.in_degree() if d == 0]
         # Sort the possible initial nodes for traversal 
         init_nodes = sort_by_rank(init_nodes, ranks)
-        if init_nodes: # always the case except for pure cycle processes 
-            current_node=init_nodes[0]
-        else: #cycle process
-            current_node = sort_by_rank(flowsheet.nodes, ranks)[0] # select the node in cycle process with the lowest rank
+        if init_nodes:  # always the case except for pure cycle processes
+            current_node = init_nodes[0]
+        else:  # cycle process
+            current_node = sort_by_rank(flowsheet.nodes, ranks)[0]  # select the node in cycle process with the lowest rank
     else:
-        current_node=init_node
+        current_node = init_node
 
     visited = set() # Set to keep track of visited nodes.
     sfiles = [] # empty sfiles list of strings
