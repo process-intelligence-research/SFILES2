@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from pyflowsheet import Flowsheet, BlackBox, StreamFlag, SvgContext, VerticalLabelAlignment, \
         HorizontalLabelAlignment, HeatExchanger, Vessel, Distillation
 from IPython.core.display import SVG
+import os
 
 
 def create_stream_table(graph, chemicalspecies, decimals):
@@ -363,4 +364,8 @@ def plot_flowsheet_pyflowsheet(graph, block=False, imagepath='flowsheet',  pfd_i
     filename = imagepath + ".svg"
     ctx = SvgContext(filename)
     img = pfd.draw(ctx)
+
+    if not os.path.exists('plots'):
+        os.makedirs('plots')
+
     SVG(img.render(scale=1))
