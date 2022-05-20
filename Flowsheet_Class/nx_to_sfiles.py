@@ -4,6 +4,7 @@
 import networkx as nx
 import re
 
+import numpy as np
 
 """
 Exposes functionality for writing SFILES (Simplified flowsheet input line entry system) strings
@@ -657,32 +658,33 @@ def calc_graph_invariant(flowsheet):
     all_unique_ranks={}
     
     for sg in _sgs:
-        connectivities = {n: 0 for n in sg.nodes}
-        for n in sg.nodes:
-            connectivities[n] = len(set((list(sg.successors(n)))+ list(sg.predecessors(n))))
+        # 1. Morgan algorithm
+        # Elements of the adjacency matrix show whether nodes are connected in the graph (1) or not (0)
+        # Summing over the rows of the adjacency matrix results in the connectivity number of each node
+        # The Morgan algorithm is performed via a matrix multiplication of the connectivity and the adjacency matrix.
+        # This equals a summing of the connectivity values of the neighbour nodes for each node in a for-loop.
 
-        # 1. Morgan algorithm 
-        # Sum up the connectivities of all neighbors (set of successors and predecessors)
-        # and update the connectivity value of n
-        temp = 0
+        undirected_graph = nx.to_undirected(sg)
+        adjacency_matrix = nx.to_numpy_matrix(undirected_graph)
+        connectivity = sum(adjacency_matrix)
+        node_labels = list(sg)
+        unique_values_temp = 0
         counter = 0
+        morgan_iter = connectivity * adjacency_matrix
+
         while counter < 5:
-            temp_dict = connectivities.copy()
-            connectivities = {n: 0 for n in sg.nodes}
-            for n in sg.nodes:
-                for nsp in set(list(sg.successors(n))+list(sg.predecessors(n))):
-                    connectivities[n] += temp_dict[nsp]
-            if len(set(connectivities.values())) > temp:
-                counter = 0
-                temp = len(set(connectivities.values()))
-                Ranks = connectivities.copy() # Take the first invariant with max length
-            else:
+            morgan_iter = morgan_iter * adjacency_matrix
+            unique_values = np.unique(morgan_iter, axis=1).size
+            if unique_values == unique_values_temp:
                 counter += 1
-        
-        
-        # assign ranks based on the connectivity values
-        r = {key: rank for rank, key in enumerate(sorted(set(Ranks.values()), reverse = False), 1)}
-        Ranks={k: r[v] for k,v in Ranks.items()}
+            else:
+                unique_values_temp = unique_values
+                morgan_iter_vec = np.squeeze(np.asarray(morgan_iter))
+                morgan_iter_dict = dict(zip(node_labels, morgan_iter_vec))
+
+        # Assign ranks based on the connectivity values
+        r = {key: rank for rank, key in enumerate(sorted(set(morgan_iter_dict.values())), 1)}
+        Ranks = {k: r[v] for k, v in morgan_iter_dict.items()}
 
         # use rank as keys
         k_v_exchanged = {}
