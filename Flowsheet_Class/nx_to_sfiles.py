@@ -51,6 +51,12 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags, init_node=None):
     else:
         current_node = init_node
 
+    flowsheet.add_node('virtual')
+    virtual_edges = [('virtual', i) for i in init_nodes]
+    flowsheet.add_edges_from(virtual_edges)
+    current_node = 'virtual'
+    ranks['virtual'] = 0
+
     visited = set() # Set to keep track of visited nodes.
     sfiles = [] # empty sfiles list of strings
     nr_pre_visited = 0 # counter for nodes that are visited more than once 
@@ -61,7 +67,7 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags, init_node=None):
     # First traversal
     sfiles, nr_pre_visited = dfs(visited, flowsheet, current_node, 
                                 sfiles, nr_pre_visited, ranks, 
-                                nodes_position_setoffs, nodes_position_setoffs_cycle, special_edges)
+                                nodes_position_setoffs, nodes_position_setoffs_cycle, special_edges, firstTraversal=True)
 
     # Further traversals
     not_visited = (set(flowsheet.nodes) - visited)
@@ -145,7 +151,7 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags, init_node=None):
 
 def dfs(visited, flowsheet, current_node, sfiles,
         nr_pre_visited, ranks, nodes_position_setoffs,
-        nodes_position_setoffs_cycle, special_edges):
+        nodes_position_setoffs_cycle, special_edges, firstTraversal):
     """ 
     Depth first search implementation to traverse the directed graph from initial node
     Note that this traversal may not visit all nodes, since the graph is directed (e.g. multiple raw materials/Input streams)
@@ -178,10 +184,22 @@ def dfs(visited, flowsheet, current_node, sfiles,
         counter variable
     
     """
+    if current_node == 'virtual':
+        visited.add(current_node)
+        # Branching decision requires ranks of nodes:
+        neighbours = sort_by_rank(flowsheet[current_node], ranks, visited)
+        for neighbour in neighbours:
+            # If neighbor is already visited, that's a direct cycle -> we need no branch brackets
+            if neighbour not in visited:
+                sfiles, nr_pre_visited = dfs(visited, flowsheet, neighbour, sfiles,
+                                             nr_pre_visited, ranks, nodes_position_setoffs,
+                                             nodes_position_setoffs_cycle, special_edges, firstTraversal)
+                firstTraversal = 0
+
     if current_node not in visited:
 
         succs = list(flowsheet.successors(current_node))
-        
+
         # New branching
         if len(succs) > 1: 
             sfiles.append('('+current_node+')')
@@ -199,7 +217,7 @@ def dfs(visited, flowsheet, current_node, sfiles,
                 if neighbour not in visited:
                     sfiles, nr_pre_visited = dfs(visited, flowsheet, neighbour, sfiles, 
                                                 nr_pre_visited, ranks, nodes_position_setoffs, 
-                                                nodes_position_setoffs_cycle, special_edges)
+                                                nodes_position_setoffs_cycle, special_edges, firstTraversal)
                     if not neighbour==neighbours[-1]:
                         sfiles.append(']') # Close bracket/branch
                 else: 
@@ -232,7 +250,7 @@ def dfs(visited, flowsheet, current_node, sfiles,
             for neighbour in flowsheet[current_node]: # future: invariant to select next node
                 sfiles, nr_pre_visited = dfs(visited, flowsheet, neighbour,
                                             sfiles, nr_pre_visited, ranks,
-                                            nodes_position_setoffs, nodes_position_setoffs_cycle, special_edges)
+                                            nodes_position_setoffs, nodes_position_setoffs_cycle, special_edges, firstTraversal)
 
         # Dead end
         elif len(succs) == 0: 
@@ -241,27 +259,60 @@ def dfs(visited, flowsheet, current_node, sfiles,
 
 
     # Already visited node
-    else: 
-        # Append the branch that lead there
-        nr_pre_visited += 1
-        pos = position_finder(nodes_position_setoffs, current_node, sfiles, 
-                            nodes_position_setoffs_cycle, cycle=False)
-        # sfiles.insert(pos + 1, '<'+str(nr_pre_visited))
-        insert_element(sfiles, pos, '<'+str(nr_pre_visited))
-        last_node = last_node_finder(sfiles)
-        pos = position_finder(nodes_position_setoffs, last_node, sfiles,
-                            nodes_position_setoffs_cycle, cycle=True)
-        # according to SMILES notation, for two digit cycles a % sign is put before the number
-        if nr_pre_visited > 9: 
-            # sfiles.insert(pos + 1, '%'+str(nr_pre_visited))
-            insert_element(sfiles, pos, '%'+str(nr_pre_visited))
+    else:
+        if firstTraversal:
+            # Append the branch that lead there
+            nr_pre_visited += 1
+            pos = position_finder(nodes_position_setoffs, current_node, sfiles,
+                                nodes_position_setoffs_cycle, cycle=False)
+            # sfiles.insert(pos + 1, '<'+str(nr_pre_visited))
+            insert_element(sfiles, pos, '<'+str(nr_pre_visited))
+            last_node = last_node_finder(sfiles)
+            pos = position_finder(nodes_position_setoffs, last_node, sfiles,
+                                nodes_position_setoffs_cycle, cycle=True)
+            # according to SMILES notation, for two digit cycles a % sign is put before the number
+            if nr_pre_visited > 9:
+                # sfiles.insert(pos + 1, '%'+str(nr_pre_visited))
+                insert_element(sfiles, pos, '%'+str(nr_pre_visited))
+            else:
+                # sfiles.insert(pos + 1, str(nr_pre_visited))
+                insert_element(sfiles, pos, str(nr_pre_visited))
+
+            # additional info: edge is a cycle edge in SFILES
+            special_edges[(last_node,current_node)] = nr_pre_visited
+
         else:
-            # sfiles.insert(pos + 1, str(nr_pre_visited))
-            insert_element(sfiles, pos, str(nr_pre_visited))
-        
-        # additional info: edge is a cycle edge in SFILES
-        special_edges[(last_node,current_node)] = nr_pre_visited
-        
+            if node_insertion == '':  # only insert sfiles once. If there are multiple backloops to previous traversal, treat them as cycles
+                # NEW: Insert a & sign where branch connects to node of previous traversal
+                node_insertion = current_node
+                last_node = last_node_finder(sfiles)
+                pos = position_finder(nodes_position_setoffs, last_node, sfiles,
+                                      nodes_position_setoffs_cycle, cycle=True)
+                insert_element(sfiles, pos, '&')
+
+                # additional info: edge is a new incoming branch edge in SFILES
+                special_edges[(last_node, current_node)] = '&'
+
+            else:  # Incoming branches are referenced with a number, if there already is a node_insertion
+                nr_pre_visited += 1
+                pos = position_finder(nodes_position_setoffs, current_node, sfiles_full,
+                                      nodes_position_setoffs_cycle, cycle=False)
+                # sfiles.insert(pos + 1, '<'+str(nr_pre_visited))
+                insert_element(sfiles_full, pos, '<' + str(nr_pre_visited))
+                last_node = last_node_finder(sfiles)
+                pos = position_finder(nodes_position_setoffs, last_node, sfiles,
+                                      nodes_position_setoffs_cycle, cycle=True)
+                # according to SMILES notation, for two digit cycles a % sign is put before the number
+                if nr_pre_visited > 9:
+                    # sfiles.insert(pos + 1, '%'+str(nr_pre_visited))
+                    insert_element(sfiles, pos, '%' + str(nr_pre_visited))
+                else:
+                    # sfiles.insert(pos + 1, str(nr_pre_visited))
+                    insert_element(sfiles, pos, str(nr_pre_visited))
+
+                # additional info: edge is a cycle edge in SFILES
+                special_edges[(last_node, current_node)] = nr_pre_visited
+
     return sfiles, nr_pre_visited
 
 def dfs_2nd(visited, visited_2, flowsheet, current_node, 

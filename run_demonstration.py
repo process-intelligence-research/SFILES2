@@ -3,6 +3,37 @@ import os
 from Flowsheet_Class.flowsheet import Flowsheet
 import networkx as nx
 
+# Methanol process
+H=nx.DiGraph()
+H.add_nodes_from(['IO-1', 'IO-2','IO-3', 'splt-1', 'pp-1', 'mix-1', 'r-1', 'IO-4', 'IO-5','IO-6'])
+H.add_edges_from([('IO-1','pp-1'), ('pp-1','mix-1'), ('mix-1','r-1'),('r-1','IO-4'),('IO-2','splt-1'),('splt-1','pp-1'),('splt-1','mix-1'),('IO-3','IO-5'),('splt-1','IO-6')])
+new = Flowsheet()
+new.state = H
+new.convert_to_sfiles()
+s = new.sfiles
+new.create_from_sfiles(s, override_nx=True)
+new.convert_to_sfiles()
+s2=new.sfiles
+if s == s2:
+    print('Conversion back successful')
+else:
+    print('Conversion back produced a different SFILES string. Input:', s, 'Output:', s2)
+
+# Try to create a new flowsheet from SFILES string
+flowsheet_2=Flowsheet()
+# TODO: Recycles are not considered as branches?
+sfiles_in="(raw)(pp)<1<&|(raw)&|(flash){tout}1{bout}(prod)n|(raw)(prod)" # has to be valid according to SFILES rules
+flowsheet_2.create_from_sfiles(sfiles_in)
+flowsheet_2.visualize_flowsheet(table=False, pfd_path='plots/flowsheet3', plot_with_stream_labels=False)
+
+# Check if conversion back works
+flowsheet_2.sfiles=""
+flowsheet_2.convert_to_sfiles(version='v2')
+if sfiles_in==flowsheet_2.sfiles:
+    print('Conversion back successful')
+else:
+    print('Conversion back produced a different SFILES string. Input:', sfiles_in, 'Output:', flowsheet_2.sfiles)
+
 # Try to create a new flowsheet from SFILES string
 flowsheet_2=Flowsheet()
 sfiles_in="(raw)(pp)<1(splt)[(hex)(flash)<&|(raw)&|[{bout}(v)(dist)[{bout}(prod)]{tout}(dist){bout}1<4{tout}(mix)<3(prod)]{bin}(abs)<2<6[{tout}(prod)]{bout}(flash){tout}5[{bout}(flash)[{tout}(comp)(comp)2<5]{bout}(flash){tout}3{bout}4]](hex){tin}6" # has to be valid according to SFILES rules
