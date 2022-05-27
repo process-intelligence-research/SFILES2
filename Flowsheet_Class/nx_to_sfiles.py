@@ -34,7 +34,7 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags, init_node=None):
     
     Returns
     ----------
-    sfiles: list 
+    sfiles_part: list
         SFILES representation of the flowsheet (still parsed)
     sfiles_string: str
         String SFILES representation of flowsheet
@@ -43,133 +43,60 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags, init_node=None):
     # Calculation of graph invariant / node ranks
     ranks = calc_graph_invariant(flowsheet)
 
-    # If no initial node is provided, select the node with lowest rank and no predecessors (in_degree = 0)
-    if not init_node:
-        init_nodes = [n for n, d in flowsheet.in_degree() if d == 0]
-        # Sort the possible initial nodes for traversal depending on their rank
-        init_nodes = sort_by_rank(init_nodes, ranks)
-        if init_nodes:  # always the case except for pure cycle processes
-            current_node = init_nodes[0]
-        else:  # cycle process
-            current_node = sort_by_rank(flowsheet.nodes, ranks)[0]
-            # select the node in cycle process with the lowest rank
-    else:
-        current_node = init_node
+    # Find initial nodes of graph. Initial nodes are determined by an in-degree of zero.
+    init_nodes = [n for n, d in flowsheet.in_degree() if d == 0]
+    # Sort the possible initial nodes for traversal depending on their rank.
+    init_nodes = sort_by_rank(init_nodes, ranks)
 
+    # Add an additional virtual node, which is connected to every initial node. Thus, one graph traversal is sufficient
+    # to access every node in the graph.
     flowsheet.add_node('virtual')
     virtual_edges = [('virtual', i) for i in init_nodes]
     flowsheet.add_edges_from(virtual_edges)
     current_node = 'virtual'
     ranks['virtual'] = 0
 
+    # Initialization of variables.
     visited = set()  # Set to keep track of visited nodes.
-    sfiles = []  # empty sfiles list of strings
+    sfiles_part = []  # empty sfile_part list of strings
     nr_pre_visited = 0  # counter for nodes that are visited more than once
-    nodes_position_setoffs = {n: 0 for n in
-                              flowsheet.nodes}  # this dictionary counts outgoing direct cycles and incoming streams per node ('#' and '<#')
-    nodes_position_setoffs_cycle = {n: 0 for n in
-                                    flowsheet.nodes}  # this dictionary counts outgoing direct cycles ('#')
+    # Dictionary nodes_position_setoffs counts outgoing direct cycles and incoming streams per node ('#' and '<#')
+    nodes_position_setoffs = {n: 0 for n in flowsheet.nodes}
+    # Dictionary nodes_position_setoffs_cycle counts outgoing direct cycles ('#')
+    nodes_position_setoffs_cycle = {n: 0 for n in flowsheet.nodes}
     special_edges = {}
 
-    # First traversal
-    sfiles, nr_pre_visited, node_insertion, sfiles_full = dfs(visited, flowsheet, current_node,
-                                 sfiles, nr_pre_visited, ranks,
-                                 nodes_position_setoffs, nodes_position_setoffs_cycle, special_edges,
-                                 firstTraversal=True, sfiles_full=[], node_insertion = '')
+    # Graph traversal
+    sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet, current_node, sfiles_part,
+                                                              nr_pre_visited, ranks, nodes_position_setoffs,
+                                                              nodes_position_setoffs_cycle, special_edges,
+                                                              first_traversal=True, sfiles=[], node_insertion='')
 
-    sfiles = sfiles_full
-    # Further traversals
-    '''not_visited = (set(flowsheet.nodes) - visited)
-    init_nodes_2 = []  # List of initial nodes for further traversals
-    for n in not_visited:
-        predeccs = list(flowsheet.predecessors(n))
-        if len(predeccs) == 0:
-            init_nodes_2.append(n)
-
-    # Continue with traversals as long as there are unvisited initial nodes
-    init_nodes_2 = sort_by_rank(init_nodes_2, ranks)
-    init_nodes_2.reverse()
-    visited_2 = visited.copy()
-    while init_nodes_2:
-        current_node = init_nodes_2.pop()
-        branch_sfiles = []
-        visited = visited_2.copy()
-        node_insertion = ''
-        branch_sfiles, nr_pre_visited, node_insertion = dfs_2nd(visited, visited_2, flowsheet, current_node, sfiles,
-                                                                branch_sfiles, nr_pre_visited, ranks,
-                                                                nodes_position_setoffs,
-                                                                nodes_position_setoffs_cycle, node_insertion,
-                                                                special_edges)
-
-        if not node_insertion == '':
-            branch_sfiles.append('|')
-            branch_sfiles.insert(0, '<&|')
-            pos = position_finder(nodes_position_setoffs, node_insertion, sfiles,
-                                  nodes_position_setoffs_cycle, cycle=False)
-            # Insert the branch next to node_insertion
-            insert_element(sfiles, pos, branch_sfiles)
-        else:  # This can happen for very large graphs with multiple branches (2nd traversal does not end in a previously visited node but in an untraversed branch)
-            # we just append it as we did in the previous SFILES version 
-            # In the latest notation this is the case for different mass trains, e.g refrigerant cycle is only coupled via heat integration
-            sfiles.append('n|')
-            sfiles.extend(branch_sfiles)
-
-    # In case there are still unvisited nodes: Separate (or heat integrated) cycle process
-    not_visited = (set(flowsheet.nodes) - visited_2)
-    while not_visited:
-        current_node = sort_by_rank(not_visited, ranks)[0]  # select the node in cycle process with the lowest rank
-        branch_sfiles = []
-        visited = visited_2.copy()
-        node_insertion = ''
-        branch_sfiles, nr_pre_visited, node_insertion = dfs_2nd(visited, visited_2, flowsheet, current_node, sfiles,
-                                                                branch_sfiles, nr_pre_visited, ranks,
-                                                                nodes_position_setoffs,
-                                                                nodes_position_setoffs_cycle, node_insertion,
-                                                                special_edges)
-
-        if not node_insertion == '':
-            branch_sfiles.append('|')
-            branch_sfiles.insert(0, '<&|')
-            pos = position_finder(nodes_position_setoffs, node_insertion, sfiles,
-                                  nodes_position_setoffs_cycle, cycle=False)
-            # Insert the branch next to node_insertion
-            insert_element(sfiles, pos, branch_sfiles)
-        else:  # This can happen for very large graphs with multiple branches (2nd traversal does not end in a previously visited node but in an untraversed branch)
-            # we just append it as we did in the previous SFILES version 
-            # In the latest notation this is the case for different mass trains, e.g refrigerant cycle is only coupled via heat integration
-            sfiles.append('n|')
-            sfiles.extend(branch_sfiles)
-
-        # check if still unvisited nodes:
-        not_visited = (set(flowsheet.nodes) - visited_2)'''
-    # Flatten nested list
+    # Flatten nested list of sfile_part
     sfiles = flatten(sfiles)
     sfiles_string = ''.join(sfiles)
 
     # The following section is for SFILES_2.0
     if version == 'v2':
         sfiles_v2 = SFILES_v2(flowsheet, sfiles, special_edges, remove_hex_tags)
-        # generalization of SFILES (remove node numbering) as last step
+        # Generalization of SFILES (remove node numbering) as last step
         sfiles_v2_gen = generalize_SFILES(sfiles_v2)
         sfiles_string_v2_gen = ''.join(sfiles_v2_gen)
 
         return sfiles_v2_gen, sfiles_string_v2_gen
     # Version 1:
     else:
-        # generalization of SFILES (remove node numbering) as last step
+        # Generalization of SFILES (remove node numbering) as last step
         sfiles_gen = generalize_SFILES(sfiles)
         sfiles_string_gen = ''.join(sfiles_gen)
 
         return sfiles_gen, sfiles_string_gen
 
 
-def dfs(visited, flowsheet, current_node, sfiles,
-        nr_pre_visited, ranks, nodes_position_setoffs,
-        nodes_position_setoffs_cycle, special_edges, firstTraversal, sfiles_full, node_insertion):
+def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, nodes_position_setoffs,
+        nodes_position_setoffs_cycle, special_edges, first_traversal, sfiles, node_insertion):
     """ 
-    Depth first search implementation to traverse the directed graph from initial node
-    Note that this traversal may not visit all nodes, since the graph is directed (e.g. multiple raw materials/Input streams)
-    In this case the function dfs_2nd(...) is used for the next traversals
+    Depth first search implementation to traverse the directed graph from the virtual node
     Parameters
     ----------
     visited: list
@@ -178,189 +105,184 @@ def dfs(visited, flowsheet, current_node, sfiles,
         flowsheet as networkx graph.
     current_node: str
         current node in depth first search
-    sfiles: list
-        SFILES representation of the flowsheet
+    sfiles_part: list
+        SFILES representation of a single traversal of the flowsheet
     nr_pre_visited: int
         counter variable for cycles
     ranks: dict
         ranks for branching decisions
     nodes_position_setoffs: dict
-        counts the occurences of outgoing and incoming cycles per node
+        counts the occurrences of outgoing and incoming cycles per node
     nodes_position_setoffs_cycle: dict
-        counts the occurences only of outgoing cycles per node
+        counts the occurrences only of outgoing cycles per node
     special_edges: dict
         saves, whether an edge (in,out) is a cycle (number>1) or not (number=0)
+    first_traversal: bool
+        saves, whether the graph traversal is the first (True) or a further traversal (False)
+    sfiles: list
+        SFILES representation of the flowsheet
+    node_insertion: str
+        Node of previous traversal(s) where branch (first) ends, default is an empty string
     Returns
     -------
     sfiles: list
         SFILES representation of the flowsheet
     nr_pre_visited: int
         counter variable
-    
     """
     if current_node == 'virtual':
         visited.add(current_node)
         # Branching decision requires ranks of nodes:
         neighbours = sort_by_rank(flowsheet[current_node], ranks, visited)
         for neighbour in neighbours:
-            sfile = []
-            sfiles, nr_pre_visited, node_insertion, sfiles_full = dfs(visited, flowsheet, neighbour, sfile,
-                                         nr_pre_visited, ranks, nodes_position_setoffs,
-                                         nodes_position_setoffs_cycle, special_edges, firstTraversal, sfiles_full, node_insertion='')
-            if firstTraversal:
-                sfiles_full.extend(sfiles)
+            # Reset sfiles_part for every new traversal starting from 'virtual'
+            sfiles_part = []
+            sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet, neighbour, sfiles_part,
+                                                                      nr_pre_visited, ranks, nodes_position_setoffs,
+                                                                      nodes_position_setoffs_cycle, special_edges,
+                                                                      first_traversal, sfiles, node_insertion='')
+            # First traversal: sfiles_part is equal to sfiles
+            # Further traversals: traversals, which are connected to the first traversal are inserted with '<&|...&|'
+            # and independent subgraphs are inserted with 'n|'
+            if first_traversal:
+                sfiles.extend(sfiles_part)
+                first_traversal = 0
             else:
                 if not node_insertion == '':
-                    sfiles.append('|')
-                    sfiles.insert(0, '<&|')
-                    pos = position_finder(nodes_position_setoffs, node_insertion, sfiles_full,
+                    sfiles_part.append('|')
+                    sfiles_part.insert(0, '<&|')
+                    pos = position_finder(nodes_position_setoffs, node_insertion, sfiles,
                                           nodes_position_setoffs_cycle, cycle=False)
                     # Insert the branch next to node_insertion
-                    insert_element(sfiles_full, pos, sfiles)
-                else:  # This can happen for very large graphs with multiple branches (2nd traversal does not end in a previously visited node but in an untraversed branch)
-                    # we just append it as we did in the previous SFILES version
-                    # In the latest notation this is the case for different mass trains, e.g refrigerant cycle is only coupled via heat integration
-                    sfiles_full.append('n|')
-                    sfiles_full.extend(sfiles)
-            firstTraversal = 0
+                    insert_element(sfiles, pos, sfiles_part)
+                else:
+                    sfiles.append('n|')
+                    sfiles.extend(sfiles_part)
 
+    # DFS is performed if current_node is not already visited and not the artificially introduced virtual node.
     if current_node not in visited and not current_node == 'virtual':
+        successors = list(flowsheet.successors(current_node))
 
-        succs = list(flowsheet.successors(current_node))
-
-        # New branching
-        if len(succs) > 1:
-            sfiles.append('(' + current_node + ')')
+        # New branching if current_node has more than one successor.
+        if len(successors) > 1:
+            sfiles_part.append('(' + current_node + ')')
             visited.add(current_node)
 
             # Branching decision requires ranks of nodes:
             neighbours = sort_by_rank(flowsheet[current_node], ranks, visited)
             for neighbour in neighbours:
-
                 # Open a bracket
                 if not neighbour == neighbours[-1]:
-                    sfiles.append('[')
+                    sfiles_part.append('[')
 
-                # If neighbor is already visited, that's a direct cycle -> we need no branch brackets
                 if neighbour not in visited:
-                    sfiles, nr_pre_visited, node_insertion, sfiles_full = dfs(visited, flowsheet, neighbour, sfiles,
-                                                 nr_pre_visited, ranks, nodes_position_setoffs,
-                                                 nodes_position_setoffs_cycle, special_edges, firstTraversal, sfiles_full, node_insertion)
+                    sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet, neighbour,
+                                                                              sfiles_part, nr_pre_visited, ranks,
+                                                                              nodes_position_setoffs,
+                                                                              nodes_position_setoffs_cycle,
+                                                                              special_edges, first_traversal,
+                                                                              sfiles, node_insertion)
                     if not neighbour == neighbours[-1]:
-                        sfiles.append(']')  # Close bracket/branch
-                elif firstTraversal:
-                    if sfiles[-1] == '[':
-                        sfiles.pop()
-                    nr_pre_visited += 1
-                    pos = position_finder(nodes_position_setoffs, neighbour, sfiles,
-                                          nodes_position_setoffs_cycle, cycle=False)
-                    # sfiles.insert(pos + 1,'<'+str(nr_pre_visited))
-                    insert_element(sfiles, pos, '<' + str(nr_pre_visited))
-                    pos = position_finder(nodes_position_setoffs, current_node, sfiles,
-                                          nodes_position_setoffs_cycle, cycle=True)
-                    # according to SMILES notation, for two digit cycles a % sign is put before the number
-                    if nr_pre_visited > 9:
-                        # sfiles.insert(pos + 1, '%'+str(nr_pre_visited))
-                        insert_element(sfiles, pos, '%' + str(nr_pre_visited))
-                    else:
-                        # sfiles.insert(pos + 1, str(nr_pre_visited))
-                        insert_element(sfiles, pos, str(nr_pre_visited))
+                        sfiles_part.append(']')  # Close bracket/branch
 
-                    # additional info: edge is a cycle edge in SFILES
+                # If neighbor is already visited, that's a direct cycle. Thus, the branch brackets can be removed.
+                elif first_traversal:
+                    if sfiles_part[-1] == '[':
+                        sfiles_part.pop()
+                    # TODO: write a separate function for this code segment (duplicate)
+                    nr_pre_visited += 1
+                    pos = position_finder(nodes_position_setoffs, neighbour, sfiles_part,
+                                          nodes_position_setoffs_cycle, cycle=False)
+                    insert_element(sfiles_part, pos, '<' + str(nr_pre_visited))
+                    pos = position_finder(nodes_position_setoffs, current_node, sfiles_part,
+                                          nodes_position_setoffs_cycle, cycle=True)
+                    # According to SMILES notation, for two digit cycles a % sign is put before the number
+                    if nr_pre_visited > 9:
+                        insert_element(sfiles_part, pos, '%' + str(nr_pre_visited))
+                    else:
+                        insert_element(sfiles_part, pos, str(nr_pre_visited))
+
+                    # Additional info: edge is a cycle edge in SFILES
                     special_edges[(current_node, neighbour)] = nr_pre_visited
 
-                elif not firstTraversal: # NEIGHBOR NODE IN PREVIOUS TRAVERSAL
-                    if sfiles[-1] == '[':
-                        sfiles.pop()
-                    if node_insertion == '':  # only insert sfiles once. If there are multiple backloops to previous traversal, treat them as cycles
-                        # NEW: Insert a & sign where branch connects to node of previous traversal
+                elif not first_traversal:  # NEIGHBOR NODE IN PREVIOUS TRAVERSAL
+                    if sfiles_part[-1] == '[':
+                        sfiles_part.pop()
+                    # Only insert sfiles once. If there are multiple backloops to previous traversal,
+                    # treat them as cycles.
+                    # Insert a & sign where branch connects to node of previous traversal
+                    if node_insertion == '':
                         node_insertion = neighbour
-                        pos = position_finder(nodes_position_setoffs, current_node, sfiles,
+                        pos = position_finder(nodes_position_setoffs, current_node, sfiles_part,
                                               nodes_position_setoffs_cycle, cycle=True)
-                        insert_element(sfiles, pos, '&')
-                        # additional info: edge is a new incoming branch edge in SFILES
+                        insert_element(sfiles_part, pos, '&')
+                        # Additional info: edge is a new incoming branch edge in SFILES
                         special_edges[(current_node, neighbour)] = '&'
 
                     else:
                         # Incoming branches are referenced with a number, if there already is a node_insertion
                         nr_pre_visited += 1
-                        pos = position_finder(nodes_position_setoffs, neighbour, sfiles_full,
+                        pos = position_finder(nodes_position_setoffs, neighbour, sfiles,
                                               nodes_position_setoffs_cycle, cycle=False)
-                        # sfiles_full.insert(pos + 1, '<'+str(nr_pre_visited))
-                        insert_element(sfiles_full, pos, '<' + str(nr_pre_visited))
-                        pos = position_finder(nodes_position_setoffs, current_node, sfiles,
+                        insert_element(sfiles, pos, '<' + str(nr_pre_visited))
+                        pos = position_finder(nodes_position_setoffs, current_node, sfiles_part,
                                               nodes_position_setoffs_cycle, cycle=True)
-                        # according to SMILES notation, for two digit cycles a % sign is put before the number
+                        # According to SMILES notation, for two digit cycles a % sign is put before the number
                         if nr_pre_visited > 9:
-                            # sfiles.insert(pos + 1, '%'+str(nr_pre_visited))
-                            insert_element(sfiles, pos, '%' + str(nr_pre_visited))
+                            insert_element(sfiles_part, pos, '%' + str(nr_pre_visited))
                         else:
-                            # sfiles.insert(pos + 1, str(nr_pre_visited))
-                            insert_element(sfiles, pos, str(nr_pre_visited))
+                            insert_element(sfiles_part, pos, str(nr_pre_visited))
 
-                        # additional info: edge is a cycle edge in SFILES
+                        # Additional info: edge is a cycle edge in SFILES
                         special_edges[(current_node, neighbour)] = nr_pre_visited
                     # No bracket/branch closing
 
         # Only one successor, no branching
-        elif len(succs) == 1:
-            sfiles.append('(' + current_node + ')')
+        elif len(successors) == 1:
+            sfiles_part.append('(' + current_node + ')')
             visited.add(current_node)
-            for neighbour in flowsheet[current_node]:  # future: invariant to select next node
-                sfiles, nr_pre_visited, node_insertion, sfiles_full = dfs(visited, flowsheet, neighbour,
-                                             sfiles, nr_pre_visited, ranks,
-                                             nodes_position_setoffs, nodes_position_setoffs_cycle, special_edges,
-                                             firstTraversal, sfiles_full, node_insertion)
+            sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet, successors[0], sfiles_part,
+                                                                      nr_pre_visited, ranks, nodes_position_setoffs,
+                                                                      nodes_position_setoffs_cycle, special_edges,
+                                                                      first_traversal, sfiles, node_insertion)
 
         # Dead end
-        elif len(succs) == 0:
+        elif len(successors) == 0:
             visited.add(current_node)
-            sfiles.append('(' + current_node + ')')
+            sfiles_part.append('(' + current_node + ')')
 
+    # NODES OF PREVIOUS TRAVERSAL, this elif case is visited when there is no branching but node of previous traversal
+    elif not current_node == 'virtual' and not first_traversal:
 
-    elif not current_node == 'virtual' and not firstTraversal:  # NODES OF PREVIOUS TRAVERSAL, this else case is visited when there is no branching but node of previous traversal
-        """ 
-        # OLD: Incoming branches are appended at the end and referenced with a number
-        nr_pre_visited += 1
-        pos = position_finder(nodes_position_setoffs, current_node, sfiles_full,
-                            nodes_position_setoffs_cycle, cycle = False)
-        sfiles_full.insert(pos+1,'<'+str(nr_pre_visited))
-        last_node = last_node_finder(sfiles)
-        pos = position_finder(nodes_position_setoffs, last_node, sfiles, 
-                            nodes_position_setoffs_cycle, cycle = True)
-        # according to SMILES notation, for two digit cycles a % sign is put before the number
-        if nr_pre_visited > 9: 
-            sfiles.insert(pos + 1, '%'+str(nr_pre_visited))
-        else:
-            sfiles.insert(pos + 1, str(nr_pre_visited)) """
-        # NEW: Incoming branches are inserted at mixing point in SFILES surrounded by <|...|
-        if node_insertion == '':  # only insert sfiles once. If there are multiple backloops to previous traversal, treat them as cycles
-            # NEW: Insert a & sign where branch connects to node of previous traversal
+        # Incoming branches are inserted at mixing point in SFILES surrounded by <&|...&|
+        # Only insert sfiles once. If there are multiple backloops to previous traversal, treat them as cycles.
+        if node_insertion == '':
+            # Insert a & sign where branch connects to node of previous traversal
             node_insertion = current_node
-            last_node = last_node_finder(sfiles)
-            pos = position_finder(nodes_position_setoffs, last_node, sfiles,
+            last_node = last_node_finder(sfiles_part)
+            pos = position_finder(nodes_position_setoffs, last_node, sfiles_part,
                                   nodes_position_setoffs_cycle, cycle=True)
-            insert_element(sfiles, pos, '&')
+            insert_element(sfiles_part, pos, '&')
 
-            # additional info: edge is a new incoming branch edge in SFILES
+            # Additional info: edge is a new incoming branch edge in SFILES
             special_edges[(last_node, current_node)] = '&'
 
         else:  # Incoming branches are referenced with a number, if there already is a node_insertion
             nr_pre_visited += 1
-            pos = position_finder(nodes_position_setoffs, current_node, sfiles_full,
+            pos = position_finder(nodes_position_setoffs, current_node, sfiles,
                                   nodes_position_setoffs_cycle, cycle=False)
             # sfiles.insert(pos + 1, '<'+str(nr_pre_visited))
-            insert_element(sfiles_full, pos, '<' + str(nr_pre_visited))
-            last_node = last_node_finder(sfiles)
-            pos = position_finder(nodes_position_setoffs, last_node, sfiles,
+            insert_element(sfiles, pos, '<' + str(nr_pre_visited))
+            last_node = last_node_finder(sfiles_part)
+            pos = position_finder(nodes_position_setoffs, last_node, sfiles_part,
                                   nodes_position_setoffs_cycle, cycle=True)
             # according to SMILES notation, for two digit cycles a % sign is put before the number
             if nr_pre_visited > 9:
                 # sfiles.insert(pos + 1, '%'+str(nr_pre_visited))
-                insert_element(sfiles, pos, '%' + str(nr_pre_visited))
+                insert_element(sfiles_part, pos, '%' + str(nr_pre_visited))
             else:
                 # sfiles.insert(pos + 1, str(nr_pre_visited))
-                insert_element(sfiles, pos, str(nr_pre_visited))
+                insert_element(sfiles_part, pos, str(nr_pre_visited))
 
             # additional info: edge is a cycle edge in SFILES
             special_edges[(last_node, current_node)] = nr_pre_visited
@@ -368,242 +290,22 @@ def dfs(visited, flowsheet, current_node, sfiles,
     elif not current_node == 'virtual':
         # Append the branch that lead there
         nr_pre_visited += 1
-        pos = position_finder(nodes_position_setoffs, current_node, sfiles,
+        pos = position_finder(nodes_position_setoffs, current_node, sfiles_part,
                               nodes_position_setoffs_cycle, cycle=False)
-        # sfiles.insert(pos + 1, '<'+str(nr_pre_visited))
-        insert_element(sfiles, pos, '<' + str(nr_pre_visited))
-        # TODO: last_node_finder redundant? Is it not only pos = len(sfiles)-1 ?
-        last_node = last_node_finder(sfiles)
-        pos = position_finder(nodes_position_setoffs, last_node, sfiles,
+        insert_element(sfiles_part, pos, '<' + str(nr_pre_visited))
+        last_node = last_node_finder(sfiles_part)
+        pos = position_finder(nodes_position_setoffs, last_node, sfiles_part,
                               nodes_position_setoffs_cycle, cycle=True)
-        # according to SMILES notation, for two digit cycles a % sign is put before the number
+        # According to SMILES notation, for two digit cycles a % sign is put before the number
         if nr_pre_visited > 9:
-            # sfiles.insert(pos + 1, '%'+str(nr_pre_visited))
-            insert_element(sfiles, pos, '%' + str(nr_pre_visited))
+            insert_element(sfiles_part, pos, '%' + str(nr_pre_visited))
         else:
-            # sfiles.insert(pos + 1, str(nr_pre_visited))
-            insert_element(sfiles, pos, str(nr_pre_visited))
+            insert_element(sfiles_part, pos, str(nr_pre_visited))
 
-        # additional info: edge is a cycle edge in SFILES
+        # Additional info: edge is a cycle edge in SFILES
         special_edges[(last_node, current_node)] = nr_pre_visited
 
-    return sfiles, nr_pre_visited, node_insertion, sfiles_full
-
-
-def dfs_2nd(visited, visited_2, flowsheet, current_node,
-            sfiles_full, sfiles, nr_pre_visited, ranks,
-            nodes_position_setoffs, nodes_position_setoffs_cycle, node_insertion, special_edges):
-    """ 
-    Second traversal: Depth first search implementation to traverse
-    the directed graph from other than first initial node.
-    This stops when visiting a node from previous traversal(s)
-    and all nodes of the branch are explored.
-    Parameters
-    ----------
-    visited: list
-        list of visited nodes from previous traversals
-    visited_2: list 
-        list of visited nodes in total
-    flowsheet: networkx graph
-        flowsheet as networkx graph.
-    current_node: str
-        current node in depth first search
-    sfiles_full: list
-        SFILES representation of the flowsheet (full string so far)
-    sfiles: list
-        SFILES representation of the flowsheet (branch)
-    nr_pre_visited: int
-        counter variable
-    ranks: dict
-        ranks for branching decisions
-    nodes_position_setoffs: dict
-        counts the occurences of outgoing and incoming cycles per node
-    nodes_position_setoffs_cycle: dict
-        counts the occurences only of outgoing cycles per node
-    node_insertion: str
-        a node of previous traversal(s) where branch (first) ends, default is an empty string
-    
-    Returns
-    -------
-    sfiles: list
-        SFILES representation of the flowsheet
-    nr_pre_visited: int
-        counter variable
-    node_insertion: str
-        a node of previous traversal(s) where branch (first) ends 
-    
-    """
-    already_loop_to_previous = False
-
-    if current_node not in visited:  # NODES OF THIS TRAVERSAL
-        if current_node not in visited_2:  # Node is not visited
-            succs = list(flowsheet.successors(current_node))
-
-            # New branching
-            if len(succs) > 1:
-                sfiles.append('(' + current_node + ')')
-                visited_2.add(current_node)
-
-                # Branching decision requires ranks of nodes:
-                neighbours = sort_by_rank(flowsheet[current_node], ranks, visited_2)
-                for neighbour in neighbours:
-
-                    # Open a bracket
-                    if not neighbour == neighbours[-1]:
-                        sfiles.append('[')
-
-                    # If neighbor is already visited, that's a direct cycle -> we need no branch brackets
-                    if neighbour not in visited_2:  # NEITHER IN PREVIOUS NOR IN THIS TRAVERSAL
-                        sfiles, nr_pre_visited, node_insertion = dfs_2nd(visited, visited_2, flowsheet,
-                                                                         neighbour, sfiles_full, sfiles,
-                                                                         nr_pre_visited, ranks, nodes_position_setoffs,
-                                                                         nodes_position_setoffs_cycle, node_insertion,
-                                                                         special_edges)
-                        if not neighbour == neighbours[-1]:
-                            sfiles.append(']')  # close bracket/branch
-                    else:
-                        if neighbour not in visited:  # NEIGHBOR NOT IN PREVIOUS BUT ALREADY IN THIS TRAVERSAL
-                            if sfiles[-1] == '[':
-                                sfiles.pop()
-                            nr_pre_visited += 1
-                            pos = position_finder(nodes_position_setoffs, neighbour, sfiles,
-                                                  nodes_position_setoffs_cycle, cycle=False)
-                            # sfiles.insert(pos + 1,'<'+str(nr_pre_visited))
-                            insert_element(sfiles, pos, '<' + str(nr_pre_visited))
-                            pos = position_finder(nodes_position_setoffs, current_node, sfiles,
-                                                  nodes_position_setoffs_cycle, cycle=True)
-                            # according to SMILES notation, for two digit cycles a % sign is put before the number
-                            if nr_pre_visited > 9:
-                                # sfiles.insert(pos + 1, '%'+str(nr_pre_visited))
-                                insert_element(sfiles, pos, '%' + str(nr_pre_visited))
-                            else:
-                                # sfiles.insert(pos + 1, str(nr_pre_visited))
-                                insert_element(sfiles, pos, str(nr_pre_visited))
-
-                            # additional info: edge is a cycle edge in SFILES
-                            special_edges[(current_node, neighbour)] = nr_pre_visited
-
-                        else:  # NEIGHBOR NODE IN PREVIOUS TRAVERSAL
-                            if sfiles[-1] == '[':
-                                sfiles.pop()
-                            if node_insertion == '':  # only insert sfiles once. If there are multiple backloops to previous traversal, treat them as cycles
-                                # NEW: Insert a & sign where branch connects to node of previous traversal
-                                node_insertion = neighbour
-                                pos = position_finder(nodes_position_setoffs, current_node, sfiles,
-                                                      nodes_position_setoffs_cycle, cycle=True)
-                                insert_element(sfiles, pos, '&')
-                                # additional info: edge is a new incoming branch edge in SFILES
-                                special_edges[(current_node, neighbour)] = '&'
-
-                            else:
-                                # Incoming branches are referenced with a number, if there already is a node_insertion
-                                nr_pre_visited += 1
-                                pos = position_finder(nodes_position_setoffs, neighbour, sfiles_full,
-                                                      nodes_position_setoffs_cycle, cycle=False)
-                                # sfiles_full.insert(pos + 1, '<'+str(nr_pre_visited))
-                                insert_element(sfiles_full, pos, '<' + str(nr_pre_visited))
-                                pos = position_finder(nodes_position_setoffs, current_node, sfiles,
-                                                      nodes_position_setoffs_cycle, cycle=True)
-                                # according to SMILES notation, for two digit cycles a % sign is put before the number
-                                if nr_pre_visited > 9:
-                                    # sfiles.insert(pos + 1, '%'+str(nr_pre_visited))
-                                    insert_element(sfiles, pos, '%' + str(nr_pre_visited))
-                                else:
-                                    # sfiles.insert(pos + 1, str(nr_pre_visited))
-                                    insert_element(sfiles, pos, str(nr_pre_visited))
-
-                                # additional info: edge is a cycle edge in SFILES
-                                special_edges[(current_node, neighbour)] = nr_pre_visited
-
-
-            # Only one successor, no branching
-            elif len(succs) == 1:
-                sfiles.append('(' + current_node + ')')
-                visited_2.add(current_node)
-
-                # Branching decision requires ranks of nodes:
-                neighbours = sort_by_rank(flowsheet[current_node], ranks, visited_2)
-                for neighbour in neighbours:
-                    sfiles, nr_pre_visited, node_insertion = dfs_2nd(visited, visited_2, flowsheet,
-                                                                     neighbour, sfiles_full, sfiles,
-                                                                     nr_pre_visited, ranks, nodes_position_setoffs,
-                                                                     nodes_position_setoffs_cycle, node_insertion,
-                                                                     special_edges)
-            # Dead end
-            elif len(succs) == 0:
-                visited_2.add(current_node)
-                sfiles.append('(' + current_node + ')')
-
-        # Cycle or mixing of two raw materials
-        # Already visited node
-        else:
-            # Append the branch that lead there
-            nr_pre_visited += 1
-            pos = position_finder(nodes_position_setoffs, current_node, sfiles,
-                                  nodes_position_setoffs_cycle, cycle=False)
-            # sfiles.insert(pos + 1, '<'+str(nr_pre_visited))
-            insert_element(sfiles, pos, '<' + str(nr_pre_visited))
-            last_node = last_node_finder(sfiles)
-            pos = position_finder(nodes_position_setoffs, last_node, sfiles,
-                                  nodes_position_setoffs_cycle, cycle=True)
-            # according to SMILES notation, for two digit cycles a % sign is put before the number
-            if nr_pre_visited > 9:
-                # sfiles.insert(pos + 1, '%'+str(nr_pre_visited))
-                insert_element(sfiles, pos, '%' + str(nr_pre_visited))
-            else:
-                # sfiles.insert(pos + 1, str(nr_pre_visited))
-                insert_element(sfiles, pos, str(nr_pre_visited))
-            # additional info: edge is a cycle edge in SFILES
-            special_edges[(last_node, current_node)] = nr_pre_visited
-
-    else:  # NODES OF PREVIOUS TRAVERSAL, this else case is visited when there is no branching but node of previous traversal
-        """ 
-        # OLD: Incoming branches are appended at the end and referenced with a number
-        nr_pre_visited += 1
-        pos = position_finder(nodes_position_setoffs, current_node, sfiles_full,
-                            nodes_position_setoffs_cycle, cycle = False)
-        sfiles_full.insert(pos+1,'<'+str(nr_pre_visited))
-        last_node = last_node_finder(sfiles)
-        pos = position_finder(nodes_position_setoffs, last_node, sfiles, 
-                            nodes_position_setoffs_cycle, cycle = True)
-        # according to SMILES notation, for two digit cycles a % sign is put before the number
-        if nr_pre_visited > 9: 
-            sfiles.insert(pos + 1, '%'+str(nr_pre_visited))
-        else:
-            sfiles.insert(pos + 1, str(nr_pre_visited)) """
-        # NEW: Incoming branches are inserted at mixing point in SFILES surrounded by <|...|
-        if node_insertion == '':  # only insert sfiles once. If there are multiple backloops to previous traversal, treat them as cycles
-            # NEW: Insert a & sign where branch connects to node of previous traversal
-            node_insertion = current_node
-            last_node = last_node_finder(sfiles)
-            pos = position_finder(nodes_position_setoffs, last_node, sfiles,
-                                  nodes_position_setoffs_cycle, cycle=True)
-            insert_element(sfiles, pos, '&')
-
-            # additional info: edge is a new incoming branch edge in SFILES
-            special_edges[(last_node, current_node)] = '&'
-
-        else:  # Incoming branches are referenced with a number, if there already is a node_insertion
-            nr_pre_visited += 1
-            pos = position_finder(nodes_position_setoffs, current_node, sfiles_full,
-                                  nodes_position_setoffs_cycle, cycle=False)
-            # sfiles.insert(pos + 1, '<'+str(nr_pre_visited))
-            insert_element(sfiles_full, pos, '<' + str(nr_pre_visited))
-            last_node = last_node_finder(sfiles)
-            pos = position_finder(nodes_position_setoffs, last_node, sfiles,
-                                  nodes_position_setoffs_cycle, cycle=True)
-            # according to SMILES notation, for two digit cycles a % sign is put before the number
-            if nr_pre_visited > 9:
-                # sfiles.insert(pos + 1, '%'+str(nr_pre_visited))
-                insert_element(sfiles, pos, '%' + str(nr_pre_visited))
-            else:
-                # sfiles.insert(pos + 1, str(nr_pre_visited))
-                insert_element(sfiles, pos, str(nr_pre_visited))
-
-            # additional info: edge is a cycle edge in SFILES
-            special_edges[(last_node, current_node)] = nr_pre_visited
-
-    return sfiles, nr_pre_visited, node_insertion
+    return sfiles_part, nr_pre_visited, node_insertion, sfiles
 
 
 def SFILES_v2(flowsheet, sfiles, special_edges, remove_hex_tags=False):
