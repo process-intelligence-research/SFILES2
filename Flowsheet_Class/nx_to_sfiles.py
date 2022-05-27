@@ -77,8 +77,9 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags, init_node=None):
                                  nodes_position_setoffs, nodes_position_setoffs_cycle, special_edges,
                                  firstTraversal=True, sfiles_full=[], node_insertion = '')
 
+    sfiles = sfiles_full
     # Further traversals
-    not_visited = (set(flowsheet.nodes) - visited)
+    '''not_visited = (set(flowsheet.nodes) - visited)
     init_nodes_2 = []  # List of initial nodes for further traversals
     for n in not_visited:
         predeccs = list(flowsheet.predecessors(n))
@@ -140,7 +141,7 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags, init_node=None):
             sfiles.extend(branch_sfiles)
 
         # check if still unvisited nodes:
-        not_visited = (set(flowsheet.nodes) - visited_2)
+        not_visited = (set(flowsheet.nodes) - visited_2)'''
     # Flatten nested list
     sfiles = flatten(sfiles)
     sfiles_string = ''.join(sfiles)
@@ -317,7 +318,7 @@ def dfs(visited, flowsheet, current_node, sfiles,
             sfiles.append('(' + current_node + ')')
 
 
-    elif not current_node == 'virtual':  # NODES OF PREVIOUS TRAVERSAL, this else case is visited when there is no branching but node of previous traversal
+    elif not current_node == 'virtual' and not firstTraversal:  # NODES OF PREVIOUS TRAVERSAL, this else case is visited when there is no branching but node of previous traversal
         """ 
         # OLD: Incoming branches are appended at the end and referenced with a number
         nr_pre_visited += 1
@@ -363,6 +364,29 @@ def dfs(visited, flowsheet, current_node, sfiles,
 
             # additional info: edge is a cycle edge in SFILES
             special_edges[(last_node, current_node)] = nr_pre_visited
+
+    elif not current_node == 'virtual':
+        # Append the branch that lead there
+        nr_pre_visited += 1
+        pos = position_finder(nodes_position_setoffs, current_node, sfiles,
+                              nodes_position_setoffs_cycle, cycle=False)
+        # sfiles.insert(pos + 1, '<'+str(nr_pre_visited))
+        insert_element(sfiles, pos, '<' + str(nr_pre_visited))
+        # TODO: last_node_finder redundant? Is it not only pos = len(sfiles)-1 ?
+        last_node = last_node_finder(sfiles)
+        pos = position_finder(nodes_position_setoffs, last_node, sfiles,
+                              nodes_position_setoffs_cycle, cycle=True)
+        # according to SMILES notation, for two digit cycles a % sign is put before the number
+        if nr_pre_visited > 9:
+            # sfiles.insert(pos + 1, '%'+str(nr_pre_visited))
+            insert_element(sfiles, pos, '%' + str(nr_pre_visited))
+        else:
+            # sfiles.insert(pos + 1, str(nr_pre_visited))
+            insert_element(sfiles, pos, str(nr_pre_visited))
+
+        # additional info: edge is a cycle edge in SFILES
+        special_edges[(last_node, current_node)] = nr_pre_visited
+
     return sfiles, nr_pre_visited, node_insertion, sfiles_full
 
 
