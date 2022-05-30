@@ -56,6 +56,15 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags, init_node=None):
     current_node = 'virtual'
     ranks['virtual'] = 0
 
+    a = nx.to_undirected(flowsheet)
+    c = set(nx.node_connected_component(a, 'virtual'))
+    d = set(flowsheet.nodes) - c
+    while d:
+        b = sort_by_rank(d, ranks)
+        flowsheet.add_edges_from([('virtual', b[0])])
+        c = set(nx.node_connected_component(a, 'virtual'))
+        d = set(flowsheet.nodes) - c
+
     # Initialization of variables.
     visited = set()  # Set to keep track of visited nodes.
     sfiles_part = []  # empty sfile_part list of strings
@@ -211,7 +220,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                     # Only insert sfiles once. If there are multiple backloops to previous traversal,
                     # treat them as cycles.
                     # Insert a & sign where branch connects to node of previous traversal
-                    if node_insertion == '':
+                    if node_insertion == '' and '(' + neighbour + ')' not in sfiles_part:
                         node_insertion = neighbour
                         pos = position_finder(nodes_position_setoffs, current_node, sfiles_part,
                                               nodes_position_setoffs_cycle, cycle=True)
@@ -219,6 +228,14 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                         # Additional info: edge is a new incoming branch edge in SFILES
                         special_edges[(current_node, neighbour)] = '&'
 
+                    elif '(' + neighbour + ')' in sfiles_part:
+                        pos1 = position_finder(nodes_position_setoffs, neighbour, sfiles_part,
+                                               nodes_position_setoffs_cycle, cycle=False)
+
+                        nr_pre_visited, special_edges, sfiles_part = insert_cycle(nr_pre_visited, sfiles_part, pos1,
+                                                                                  current_node,
+                                                                                  special_edges, nodes_position_setoffs,
+                                                                                  nodes_position_setoffs_cycle)
                     else:
                         # Incoming branches are referenced with a number, if there already is a node_insertion
                         nr_pre_visited += 1
@@ -497,9 +514,14 @@ def calc_graph_invariant(flowsheet):
         node_labels = list(sg)
         unique_values_temp = 0
         counter = 0
+        maximum_iteration = 0
         morgan_iter = connectivity @ adjacency_matrix
 
-        while counter < 5:
+        # Morgan algorithm is stopped if the number of unique values is stable and maximum number of iteration is
+        # reached. Maximum number of iteration is necessary since the number of unique values may not be stable for
+        # e.g. cycle processes.
+        while counter < 5 and maximum_iteration < 100:
+            maximum_iteration += 1
             morgan_iter = morgan_iter @ adjacency_matrix
             unique_values = np.unique(morgan_iter).size
             if unique_values == unique_values_temp:

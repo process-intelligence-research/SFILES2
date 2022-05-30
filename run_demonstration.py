@@ -19,6 +19,24 @@ if s == s2:
 else:
     print('Conversion back produced a different SFILES string. Input:', s, 'Output:', s2)
 
+# Methanol process
+H=nx.DiGraph()
+H.add_nodes_from(['pp-1', 'hex-1','pp-2', 'hex-2', 'pp-3', 'hex-3','pp-4', 'hex-4', 'IO-1'])
+H.add_edges_from([('pp-1','hex-1'), ('hex-1','pp-2'), ('pp-2','hex-2'),('hex-2','pp-1'), ('pp-1','pp-2'),
+                  ('pp-3','hex-3'), ('hex-3','pp-4'), ('pp-4','hex-4'),('hex-4','pp-3'), ('pp-3','IO-1')
+                  ])
+new = Flowsheet()
+new.state = H
+new.convert_to_sfiles()
+s = new.sfiles
+new.create_from_sfiles(s, override_nx=True)
+new.convert_to_sfiles()
+s2=new.sfiles
+if s == s2:
+    print('Conversion back successful')
+else:
+    print('Conversion back produced a different SFILES string. Input:', s, 'Output:', s2)
+
 # Try to create a new flowsheet from SFILES string
 flowsheet_2=Flowsheet()
 # TODO: Recycles are not considered as branches?
