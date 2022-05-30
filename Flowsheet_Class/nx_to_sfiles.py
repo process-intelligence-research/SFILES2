@@ -492,22 +492,21 @@ def calc_graph_invariant(flowsheet):
         # This equals a summing of the connectivity values of the neighbour nodes for each node in a for-loop.
 
         undirected_graph = nx.to_undirected(sg)
-        adjacency_matrix = nx.to_numpy_matrix(undirected_graph)
+        adjacency_matrix = nx.to_numpy_array(undirected_graph, dtype=np.int64)
         connectivity = sum(adjacency_matrix)
         node_labels = list(sg)
         unique_values_temp = 0
         counter = 0
-        morgan_iter = connectivity * adjacency_matrix
+        morgan_iter = connectivity @ adjacency_matrix
 
         while counter < 5:
-            morgan_iter = morgan_iter * adjacency_matrix
-            unique_values = np.unique(morgan_iter, axis=1).size
+            morgan_iter = morgan_iter @ adjacency_matrix
+            unique_values = np.unique(morgan_iter).size
             if unique_values == unique_values_temp:
                 counter += 1
             else:
                 unique_values_temp = unique_values
-                morgan_iter_vec = np.squeeze(np.asarray(morgan_iter))
-                morgan_iter_dict = dict(zip(node_labels, morgan_iter_vec))
+                morgan_iter_dict = dict(zip(node_labels, morgan_iter))
 
         # Assign ranks based on the connectivity values
         r = {key: rank for rank, key in enumerate(sorted(set(morgan_iter_dict.values())), 1)}
