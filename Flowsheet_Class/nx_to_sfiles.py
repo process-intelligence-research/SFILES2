@@ -232,10 +232,21 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                         pos1 = position_finder(nodes_position_setoffs, neighbour, sfiles_part,
                                                nodes_position_setoffs_cycle, cycle=False)
 
-                        nr_pre_visited, special_edges, sfiles_part = insert_cycle(nr_pre_visited, sfiles_part, pos1,
-                                                                                  current_node,
-                                                                                  special_edges, nodes_position_setoffs,
-                                                                                  nodes_position_setoffs_cycle)
+                        nr_pre_visited += 1
+                        insert_element(sfiles_part, pos1, '<' + str(nr_pre_visited))
+
+                        pos2 = position_finder(nodes_position_setoffs, current_node, sfiles_part,
+                                               nodes_position_setoffs_cycle, cycle=True)
+
+                        # According to SMILES notation, for two digit cycles a % sign is put before the number
+                        if nr_pre_visited > 9:
+                            insert_element(sfiles_part, pos2, '%' + str(nr_pre_visited))
+                        else:
+                            insert_element(sfiles_part, pos2, str(nr_pre_visited))
+
+                        # Additional info: edge is a cycle edge in SFILES
+                        special_edges[(current_node, neighbour)] = nr_pre_visited
+
                     else:
                         # Incoming branches are referenced with a number, if there already is a node_insertion
                         nr_pre_visited += 1
