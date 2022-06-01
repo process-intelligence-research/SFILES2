@@ -56,14 +56,14 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags, init_node=None):
     current_node = 'virtual'
     ranks['virtual'] = 0
 
-    a = nx.to_undirected(flowsheet)
-    c = set(nx.node_connected_component(a, 'virtual'))
-    d = set(flowsheet.nodes) - c
-    while d:
-        b = sort_by_rank(d, ranks)
-        flowsheet.add_edges_from([('virtual', b[0])])
-        c = set(nx.node_connected_component(a, 'virtual'))
-        d = set(flowsheet.nodes) - c
+    flowsheet_undirected = nx.to_undirected(flowsheet)
+    connected_to_virtual = set(nx.node_connected_component(flowsheet_undirected, 'virtual'))
+    not_connected = set(flowsheet.nodes) - connected_to_virtual
+    while not_connected:
+        rank_not_connected = sort_by_rank(not_connected, ranks)
+        flowsheet.add_edges_from([('virtual', rank_not_connected[0])])
+        connected_to_virtual = set(nx.node_connected_component(flowsheet_undirected, 'virtual'))
+        not_connected = set(flowsheet.nodes) - connected_to_virtual
 
     # Initialization of variables.
     visited = set()  # Set to keep track of visited nodes.
