@@ -273,7 +273,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
 
         # Incoming branches are inserted at mixing point in SFILES surrounded by <&|...&|
         # Only insert sfiles once. If there are multiple backloops to previous traversal, treat them as cycles.
-        if node_insertion == '' and '('+ current_node +')' in sfiles:
+        if node_insertion == '' and '('+ current_node +')' in flatten(sfiles):
             # Insert a & sign where branch connects to node of previous traversal
             node_insertion = current_node
             last_node = last_node_finder(sfiles_part)
@@ -285,11 +285,11 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
             special_edges[(last_node, current_node)] = '&'
 
         else:  # Incoming branches are referenced with a number, if there already is a node_insertion
-            if '('+ current_node +')' in sfiles_part:
+            if '('+ current_node +')' in flatten(sfiles_part):
                 nr_pre_visited += 1
                 pos1 = position_finder(nodes_position_setoffs, current_node, sfiles_part,
                                        nodes_position_setoffs_cycle, cycle=False)
-                insert_element(sfiles, pos1, '<' + str(nr_pre_visited))
+                insert_element(sfiles_part, pos1, '<' + str(nr_pre_visited))
                 last_node = last_node_finder(sfiles_part)
                 pos2 = position_finder(nodes_position_setoffs, last_node, sfiles_part,
                                        nodes_position_setoffs_cycle, cycle=True)
