@@ -17,7 +17,7 @@ Based on
 """
 
 
-def nx_to_SFILES(flowsheet, version, remove_hex_tags, init_node=None):
+def nx_to_SFILES(flowsheet, version, remove_hex_tags):
     """
     Returns the SFILES representation (Tuple of list and string)
     Parameters
@@ -29,8 +29,6 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags, init_node=None):
     remove_hex_tags: bool
         Whether to show the 'he' tags in the SFILES_v2 (Conversion back and merging of hex nodes is not possible if
         this is set to true)
-    init_node: str, optional
-        node where to start the graph traversal
     
     Returns
     ----------
@@ -338,15 +336,16 @@ def insert_cycle(nr_pre_visited, sfiles_part, sfiles, special_edges, nodes_posit
 def SFILES_v2(flowsheet, sfiles, special_edges, remove_hex_tags=False):
     """
     Method to construct the SFILES 2.0:
-    Additional information in egde attributes regarding connectivity (Top or bottom in distillation, absorption, or extraction columns)
+    Additional information in edge attributes regarding connectivity (Top or bottom in distillation, absorption, or
+    extraction columns)
 
-    
     Parameters
     ----------
     flowsheet (nx graph): flowsheet as directed networkx graph.
     sfiles (list): SFILES representation of the flowsheet (still parsed)
     special_edges (dict): contains edge and cycle number>0 -> different notation of tags
-    remove_hex_tags (bool): Whether to show the 'he' tags in the SFILES_v2 (Conversion back and merging of hex nodes is not possible if this is set to true)
+    remove_hex_tags (bool): Whether to show the 'he' tags in the SFILES_v2
+    (Conversion back and merging of hex nodes is not possible if this is set to true)
 
     Returns
     -------
@@ -409,12 +408,12 @@ def SFILES_v2(flowsheet, sfiles, special_edges, remove_hex_tags=False):
     HI_eqs = []  # Heat integrated heat exchangers
     for s_idx, s in enumerate(sfiles_v2):
         if 'hex' in s and '/' in s:
-            hex = s.split(sep='/')[0][1:]
-            if hex not in HI_eqs:
-                HI_eqs.append(hex)
+            heatexchanger = s.split(sep='/')[0][1:]
+            if heatexchanger not in HI_eqs:
+                HI_eqs.append(heatexchanger)
     _HI_counter = 1
-    for hex in HI_eqs:
-        indices = [i for i, x in enumerate(sfiles_v2) if x.split(sep='/')[0][1:] == hex]
+    for heatexchanger in HI_eqs:
+        indices = [i for i, x in enumerate(sfiles_v2) if x.split(sep='/')[0][1:] == heatexchanger]
         for i in indices:
             previous = sfiles_v2[i]
             sfiles_v2[i] = [previous, '{' + str(_HI_counter) + '}']
@@ -545,11 +544,11 @@ def calc_graph_invariant(flowsheet):
 
         # Assign ranks based on the connectivity values
         r = {key: rank for rank, key in enumerate(sorted(set(morgan_iter_dict.values())), 1)}
-        Ranks = {k: r[v] for k, v in morgan_iter_dict.items()}
+        ranks = {k: r[v] for k, v in morgan_iter_dict.items()}
 
         # use rank as keys
         k_v_exchanged = {}
-        for key, value in Ranks.items():
+        for key, value in ranks.items():
             if value not in k_v_exchanged:
                 k_v_exchanged[value] = [key]
             else:
@@ -578,7 +577,8 @@ def calc_graph_invariant(flowsheet):
                 dfs_trees_generalized = {eq_ranked_nodes[i]: [el.split(sep='-')[0] for el in list(dfs_trees[i].nodes)]
                                          for i in range(0, len(eq_ranked_nodes))}
 
-                # We sort the nodes by 4 criteria: Input/output/other node, number of successors in dfs_tree, successors names (without numbering), node names with numbering
+                # We sort the nodes by 4 criteria: Input/output/other node, number of successors in dfs_tree,
+                # successors names (without numbering), node names with numbering
                 sorted_eq_ranked_nodes = rank_by_dfs_tree(dfs_trees_generalized)
 
             else:
@@ -659,12 +659,12 @@ def last_node_finder(sfiles):
     return last_node
 
 
-def flatten(l):
+def flatten(k):
     """
     Returns a flattened list
     Parameters
     ----------
-    l: nested list
+    k: nested list
     
     Returns
     ----------
@@ -672,7 +672,7 @@ def flatten(l):
         flat list
     """
     l_flat = []
-    for i in l:
+    for i in k:
         if isinstance(i, list):
             l_flat.extend(flatten(i))
         else:
@@ -697,7 +697,7 @@ def find_nested_indices(li, node):
 
 
 def insert_element(lst, indices, value):
-    if (len(indices) == 1):
+    if len(indices) == 1:
         lst.insert(indices[0] + 1, value)
     else:
         insert_element(lst[indices[0]], indices[1:], value)
@@ -708,14 +708,17 @@ def rank_by_dfs_tree(dfs_trees_generalized):
     Sorts the nodes with equal ranks (still after application of morgan algorithm) 
     Criteria:
     1. Ranks: Output node < Input node < All other nodes
-    2.1. Input nodes: The higher the number of succesors in dfs_tree the lower the rank -> first build long SFILES parts (if 1. did not yield unique ranks)
-    2.2. Other nodes: The lower the number of succesors in dfs_tree the lower the rank -> short branches in brackets  (if 1. did not yield unique ranks)
+    2.1. Input nodes: The higher the number of succesors in dfs_tree the lower the rank -> first build long SFILES parts
+    (if 1. did not yield unique ranks)
+    2.2. Other nodes: The lower the number of succesors in dfs_tree the lower the rank -> short branches in brackets
+    (if 1. did not yield unique ranks)
     3. Alphabetical comparison of successor names (if 1. & 2. did not yield unique ranks)
-    4. Unit operations of equally ranked nodes are the same -> Considering node numbers of equally ranked nodes (if 1. & 2. & 3. did not yield unique ranks)
+    4. Unit operations of equally ranked nodes are the same -> Considering node numbers of equally ranked nodes
+    (if 1. & 2. & 3. did not yield unique ranks)
     
     Note: Criteria 4 implies that the node numbering matters in SFILES construction.
-          Nevertheless, if we remove the numbers in SFILES (generalized SFILES), the SFILES will be independent of numbering
-          This is based on Criteria 3, which implies that all the successors are the same.
+          Nevertheless, if we remove the numbers in SFILES (generalized SFILES), the SFILES will be independent of
+          numbering. This is based on Criteria 3, which implies that all the successors are the same.
 
     Parameters
     ----------
@@ -745,17 +748,19 @@ def rank_by_dfs_tree(dfs_trees_generalized):
             # other node
             other_nodes[n] = (len(dfs_trees_generalized[n]), succ_str)
 
-    # Sort all dicts first according list length (input/output: long is better, other nodes: short is better-> less in brackets), then generalized string alphabetically, then real node name (i.e. node number)
-    # real node name (with numbering is only accessed if the generalized string is the same -> graph structure is the same)
+    # Sort all dicts first according list length (input/output: long is better, other nodes: short is better->
+    # less in brackets), then generalized string alphabetically, then real node name (i.e. node number)
+    # real node name (with numbering is only accessed if the generalized string is the same
+    # -> graph structure is the same)
     sorted_nodes = []
     for d in [output_nodes, input_nodes]:
         # 3 sort criteria in that order list length (- sign), then generalized string alphabetically, then node number
         sorted_nodes_sub = sorted(d, key=lambda k: (-d[k][0], d[k][1], int(re.split('-|/', k)[1])))
-        sorted_nodes.extend(sorted_nodes_sub)  # implies the order of first output, then input, then other nodess
+        sorted_nodes.extend(sorted_nodes_sub)  # implies the order of first output, then input, then other nodes
     # other nodes
     # 3 sort criteria in that order list length (+ sign), then generalized string alphabetically,  then node number
     sorted_nodes_sub = sorted(other_nodes,
                               key=lambda k: (other_nodes[k][0], other_nodes[k][1], int(re.split('-|/', k)[1])))
-    sorted_nodes.extend(sorted_nodes_sub)  # implies the order of first output, then input, then other nodess
+    sorted_nodes.extend(sorted_nodes_sub)  # implies the order of first output, then input, then other nodes
 
     return sorted_nodes
