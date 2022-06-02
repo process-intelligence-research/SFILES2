@@ -199,20 +199,14 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                     if sfiles_part[-1] == '[':
                         sfiles_part.pop()
 
-                    nr_pre_visited += 1
-                    pos = position_finder(nodes_position_setoffs, neighbour, sfiles_part,
-                                          nodes_position_setoffs_cycle, cycle=False)
-                    insert_element(sfiles_part, pos, '<' + str(nr_pre_visited))
-                    pos = position_finder(nodes_position_setoffs, current_node, sfiles_part,
-                                          nodes_position_setoffs_cycle, cycle=True)
-                    # According to SMILES notation, for two digit cycles a % sign is put before the number
-                    if nr_pre_visited > 9:
-                        insert_element(sfiles_part, pos, '%' + str(nr_pre_visited))
-                    else:
-                        insert_element(sfiles_part, pos, str(nr_pre_visited))
-
-                    # Additional info: edge is a cycle edge in SFILES
-                    special_edges[(current_node, neighbour)] = nr_pre_visited
+                    nr_pre_visited, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited, sfiles_part,
+                                                                                      sfiles,
+                                                                                      special_edges,
+                                                                                      nodes_position_setoffs,
+                                                                                      nodes_position_setoffs_cycle,
+                                                                                      neighbour, current_node,
+                                                                                      inverse_special_edge=False,
+                                                                                      pos1_in_sfiles=False)
 
                 elif not first_traversal:  # NEIGHBOR NODE IN PREVIOUS TRAVERSAL
                     if sfiles_part[-1] == '[':
@@ -229,40 +223,26 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                         special_edges[(current_node, neighbour)] = '&'
 
                     elif '(' + neighbour + ')' in flatten(sfiles_part):
-                        pos1 = position_finder(nodes_position_setoffs, neighbour, sfiles_part,
-                                               nodes_position_setoffs_cycle, cycle=False)
-
-                        nr_pre_visited += 1
-                        insert_element(sfiles_part, pos1, '<' + str(nr_pre_visited))
-
-                        pos2 = position_finder(nodes_position_setoffs, current_node, sfiles_part,
-                                               nodes_position_setoffs_cycle, cycle=True)
-
-                        # According to SMILES notation, for two digit cycles a % sign is put before the number
-                        if nr_pre_visited > 9:
-                            insert_element(sfiles_part, pos2, '%' + str(nr_pre_visited))
-                        else:
-                            insert_element(sfiles_part, pos2, str(nr_pre_visited))
-
-                        # Additional info: edge is a cycle edge in SFILES
-                        special_edges[(current_node, neighbour)] = nr_pre_visited
+                        nr_pre_visited, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited, sfiles_part,
+                                                                                          sfiles,
+                                                                                          special_edges,
+                                                                                          nodes_position_setoffs,
+                                                                                          nodes_position_setoffs_cycle,
+                                                                                          neighbour,
+                                                                                          current_node,
+                                                                                          inverse_special_edge=True,
+                                                                                          pos1_in_sfiles=False)
 
                     else:
-                        # Incoming branches are referenced with a number, if there already is a node_insertion
-                        nr_pre_visited += 1
-                        pos = position_finder(nodes_position_setoffs, neighbour, sfiles,
-                                              nodes_position_setoffs_cycle, cycle=False)
-                        insert_element(sfiles, pos, '<' + str(nr_pre_visited))
-                        pos = position_finder(nodes_position_setoffs, current_node, sfiles_part,
-                                              nodes_position_setoffs_cycle, cycle=True)
-                        # According to SMILES notation, for two digit cycles a % sign is put before the number
-                        if nr_pre_visited > 9:
-                            insert_element(sfiles_part, pos, '%' + str(nr_pre_visited))
-                        else:
-                            insert_element(sfiles_part, pos, str(nr_pre_visited))
-
-                        # Additional info: edge is a cycle edge in SFILES
-                        special_edges[(current_node, neighbour)] = nr_pre_visited
+                        nr_pre_visited, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited, sfiles_part,
+                                                                                          sfiles,
+                                                                                          special_edges,
+                                                                                          nodes_position_setoffs,
+                                                                                          nodes_position_setoffs_cycle,
+                                                                                          neighbour,
+                                                                                          current_node,
+                                                                                          inverse_special_edge=True,
+                                                                                          pos1_in_sfiles=True)
                     # No bracket/branch closing
 
         # Only one successor, no branching
@@ -284,7 +264,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
 
         # Incoming branches are inserted at mixing point in SFILES surrounded by <&|...&|
         # Only insert sfiles once. If there are multiple backloops to previous traversal, treat them as cycles.
-        if node_insertion == '' and '('+ current_node +')' in flatten(sfiles):
+        if node_insertion == '' and '(' + current_node + ')' in flatten(sfiles):
             # Insert a & sign where branch connects to node of previous traversal
             node_insertion = current_node
             last_node = last_node_finder(sfiles_part)
@@ -296,59 +276,48 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
             special_edges[(last_node, current_node)] = '&'
 
         else:  # Incoming branches are referenced with a number, if there already is a node_insertion
-            if '('+ current_node +')' in flatten(sfiles_part):
-                nr_pre_visited += 1
-                pos1 = position_finder(nodes_position_setoffs, current_node, sfiles_part,
-                                       nodes_position_setoffs_cycle, cycle=False)
-                insert_element(sfiles_part, pos1, '<' + str(nr_pre_visited))
-                last_node = last_node_finder(sfiles_part)
-                pos2 = position_finder(nodes_position_setoffs, last_node, sfiles_part,
-                                       nodes_position_setoffs_cycle, cycle=True)
-                # according to SMILES notation, for two digit cycles a % sign is put before the number
-                if nr_pre_visited > 9:
-                    insert_element(sfiles_part, pos2, '%' + str(nr_pre_visited))
-                else:
-                    insert_element(sfiles_part, pos2, str(nr_pre_visited))
-
-                # additional info: edge is a cycle edge in SFILES
-                special_edges[(last_node, current_node)] = nr_pre_visited
+            if '(' + current_node + ')' in flatten(sfiles_part):
+                nr_pre_visited, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited, sfiles_part, sfiles,
+                                                                                  special_edges, nodes_position_setoffs,
+                                                                                  nodes_position_setoffs_cycle,
+                                                                                  current_node, node2='last_node',
+                                                                                  inverse_special_edge=False,
+                                                                                  pos1_in_sfiles=False)
             else:
-                nr_pre_visited += 1
-                pos1 = position_finder(nodes_position_setoffs, current_node, sfiles,
-                                       nodes_position_setoffs_cycle, cycle=False)
-                # TODO: check if sfiles_part or sfiles
-                insert_element(sfiles, pos1, '<' + str(nr_pre_visited))
-                last_node = last_node_finder(sfiles_part)
-                pos2 = position_finder(nodes_position_setoffs, last_node, sfiles_part,
-                                       nodes_position_setoffs_cycle, cycle=True)
-                # according to SMILES notation, for two digit cycles a % sign is put before the number
-                if nr_pre_visited > 9:
-                    insert_element(sfiles_part, pos2, '%' + str(nr_pre_visited))
-                else:
-                    insert_element(sfiles_part, pos2, str(nr_pre_visited))
-
-                # additional info: edge is a cycle edge in SFILES
-                special_edges[(last_node, current_node)] = nr_pre_visited
-
+                nr_pre_visited, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited, sfiles_part, sfiles,
+                                                                                  special_edges, nodes_position_setoffs,
+                                                                                  nodes_position_setoffs_cycle,
+                                                                                  current_node, node2='last_node',
+                                                                                  inverse_special_edge=False,
+                                                                                  pos1_in_sfiles=True)
 
     elif not current_node == 'virtual':
-        pos1 = position_finder(nodes_position_setoffs, current_node, sfiles_part,
-                               nodes_position_setoffs_cycle, cycle=False)
-
-        nr_pre_visited, special_edges, sfiles_part = insert_cycle(nr_pre_visited, sfiles_part, pos1, current_node,
-                                                                  special_edges, nodes_position_setoffs,
-                                                                  nodes_position_setoffs_cycle)
+        nr_pre_visited, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited, sfiles_part, sfiles,
+                                                                          special_edges, nodes_position_setoffs,
+                                                                          nodes_position_setoffs_cycle,
+                                                                          current_node, node2='last_node',
+                                                                          inverse_special_edge=False,
+                                                                          pos1_in_sfiles=False)
 
     return sfiles_part, nr_pre_visited, node_insertion, sfiles
 
 
-def insert_cycle(nr_pre_visited, sfiles_part, pos1, current_node, special_edges, nodes_position_setoffs,
-                 nodes_position_setoffs_cycle):
+def insert_cycle(nr_pre_visited, sfiles_part, sfiles, special_edges, nodes_position_setoffs,
+                 nodes_position_setoffs_cycle, node1, node2, inverse_special_edge, pos1_in_sfiles):
+    if pos1_in_sfiles:
+        pos1 = position_finder(nodes_position_setoffs, node1, sfiles,
+                               nodes_position_setoffs_cycle, cycle=False)
+        nr_pre_visited += 1
+        insert_element(sfiles, pos1, '<' + str(nr_pre_visited))
+    else:
+        pos1 = position_finder(nodes_position_setoffs, node1, sfiles_part,
+                               nodes_position_setoffs_cycle, cycle=False)
+        nr_pre_visited += 1
+        insert_element(sfiles_part, pos1, '<' + str(nr_pre_visited))
 
-    nr_pre_visited += 1
-    insert_element(sfiles_part, pos1, '<' + str(nr_pre_visited))
-    last_node = last_node_finder(sfiles_part)
-    pos2 = position_finder(nodes_position_setoffs, last_node, sfiles_part,
+    if node2 == 'last_node':
+        node2 = last_node_finder(sfiles_part)
+    pos2 = position_finder(nodes_position_setoffs, node2, sfiles_part,
                            nodes_position_setoffs_cycle, cycle=True)
 
     # According to SMILES notation, for two digit cycles a % sign is put before the number
@@ -358,9 +327,13 @@ def insert_cycle(nr_pre_visited, sfiles_part, pos1, current_node, special_edges,
         insert_element(sfiles_part, pos2, str(nr_pre_visited))
 
     # Additional info: edge is a cycle edge in SFILES
-    special_edges[(last_node, current_node)] = nr_pre_visited
+    if inverse_special_edge:
+        special_edges[(node1, node2)] = nr_pre_visited
+    else:
+        special_edges[(node2, node1)] = nr_pre_visited
 
-    return nr_pre_visited, special_edges, sfiles_part
+    return nr_pre_visited, special_edges, sfiles_part, sfiles
+
 
 def SFILES_v2(flowsheet, sfiles, special_edges, remove_hex_tags=False):
     """
