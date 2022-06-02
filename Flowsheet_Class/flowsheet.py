@@ -506,57 +506,71 @@ class Flowsheet:
         else: 
             print('Warning: seems like two streams of heat exchanger are connected to same unit operation and in have same edge directions. No merging in NetworkX possible')
 
-    def split_HI_nodes(self, OntoCapeNames = False):
+    def split_HI_nodes(self, OntoCapeNames=False):
         """ 
-        Heat integrated heat exchanger nodes are splitted (Only if there is a multistream heat exchanger node with corresponding he tags)
+        Heat integrated heat exchanger nodes are splitted.
+        (Only if there is a multistream heat exchanger node with corresponding he tags)
         """
-        if OntoCapeNames: hex = 'HeatExchanger'
-        else: hex = 'hex'
+        if OntoCapeNames:
+            heatexchanger = 'HeatExchanger'
+        else:
+            heatexchanger = 'hex'
         for n in list(self.state.nodes):
-            if hex in n and self.state.in_degree(n)>1: # heat exchangers with more than 1 streams
-                assert(self.state.out_degree(n)==self.state.in_degree(n))
+            if heatexchanger in n and self.state.in_degree(n) > 1:  # Heat exchangers with more than 1 streams
+                assert(self.state.out_degree(n) == self.state.in_degree(n))
                 edge_infos = nx.get_edge_attributes(self.state, "tags")
                 edges_in = list(self.state.in_edges(n))
                 edges_out = list(self.state.out_edges(n))
-                edge_infos_he_in = {k:v for k,v in edge_infos.items() if k in edges_in} # edges with infos only for that heat exchanger
-                edge_infos_he_out = {k:v for k,v in edge_infos.items() if k in edges_out} # edges with infos only for that heat exchanger
-                try: # Here we try to match the inlet with their corresponding outlet streams using the tags (This works for tags of the form hot_in,hot_out,cold_in,cold_out,1_in,1_out, ...)
-                    assert(len(edge_infos_he_in.keys())==len(edges_in))
-                    assert(len(edge_infos_he_out.keys())==len(edges_out))
-                    edges_in_sorted = dict(sorted(edge_infos_he_in.items(), key=lambda item: [s for s in item[1]['he'] if 'in' in s][0])) # sort by he_tags -> cold and hot substring is used for sorting
-                    edges_out_sorted = dict(sorted(edge_infos_he_out.items(), key=lambda item: [s for s in item[1]['he'] if 'out' in s][0])) # sort by he_tags -> cold and hot string is used
-                    heat_exchanger_subs_in = self.split_dictionary(edges_in_sorted,1) # splits for each stream
-                    heat_exchanger_subs_out = self.split_dictionary(edges_out_sorted,1) # splits for each stream 
-                    heat_exchanger_subs = [{**heat_exchanger_subs_in[i],**heat_exchanger_subs_out[i]} for i in range(0,len(heat_exchanger_subs_in))]
+                # Edges with infos only for that heat exchanger
+                edge_infos_he_in = {k: v for k, v in edge_infos.items() if k in edges_in}
+                # Edges with infos only for that heat exchanger
+                edge_infos_he_out = {k: v for k, v in edge_infos.items() if k in edges_out}
+
+                # Here we try to match the inlet with their corresponding outlet streams using the tags
+                # (This works for tags of the form hot_in,hot_out,cold_in,cold_out,1_in,1_out, ...)
+                try:
+                    assert(len(edge_infos_he_in.keys()) == len(edges_in))
+                    assert(len(edge_infos_he_out.keys()) == len(edges_out))
+                    # Sort by he_tags -> cold and hot substring is used for sorting
+                    edges_in_sorted = dict(sorted(edge_infos_he_in.items(),
+                                                  key=lambda item: [s for s in item[1]['he'] if 'in' in s][0]))
+                    # Sort by he_tags -> cold and hot string is used
+                    edges_out_sorted = dict(sorted(edge_infos_he_out.items(),
+                                                   key=lambda item: [s for s in item[1]['he'] if 'out' in s][0]))
+                    heat_exchanger_subs_in = self.split_dictionary(edges_in_sorted, 1)  # Splits for each stream
+                    heat_exchanger_subs_out = self.split_dictionary(edges_out_sorted, 1)  # Splits for each stream
+                    heat_exchanger_subs = [{**heat_exchanger_subs_in[i], **heat_exchanger_subs_out[i]}
+                                           for i in range(0, len(heat_exchanger_subs_in))]
                     new_nodes = []
                     new_edges = []
 
+                    # TODO: Test if this is correct.
                     hex_sub_temp = False
-                    for i,hex_sub in enumerate(heat_exchanger_subs):
-                    # TODO: Test if this is correct. Break criterium not correct.
+                    for i, hex_sub in enumerate(heat_exchanger_subs):
+                        new_node = n+'/%d' % (i+1)
+                        new_nodes.append(new_node)  # Nodes
 
-                        new_node = n+'/%d'%(i+1)
-                        new_nodes.append(new_node) # nodes
-
-
-                        for old_edge,attributes in hex_sub.items():
+                        for old_edge, attributes in hex_sub.items():
                             if hex_sub_temp == hex_sub.get(old_edge):
                                 continue
                             else:
+                                # Check if heat exchanger is connected to itself.
                                 if old_edge[0] == old_edge[1]:
-                                    new_node_2 = n+'/%d'%(i+2)
+                                    new_node_2 = n+'/%d' % (i+2)
                                     new_edge = (new_node, new_node_2)
                                     hex_sub_temp = hex_sub.get(old_edge)
                                 else:
                                     new_edge = tuple(map(lambda i: str.replace(i, n,new_node), old_edge))
 
-                                new_edges.append((new_edge[0],new_edge[1],{'tags':attributes}))# edges with attributes
+                                new_edges.append((new_edge[0], new_edge[1], {'tags': attributes}))  # edges with attributes
                     "Delete old node and associated edges first"
                     self.state.remove_node(n)
                     self.state.add_nodes_from(new_nodes)
                     self.state.add_edges_from(new_edges)
                 except Exception:
-                    warnings.warn("Warning: No he tags (or not of all connected edges) found for this multistream heat exchanger. The multi-stream heat exchanger will be represented as one node.", DeprecationWarning)
+                    warnings.warn("Warning: No he tags (or not of all connected edges) found for this multistream "
+                                  "heat exchanger. The multi-stream heat exchanger will be represented as one node.",
+                                  DeprecationWarning)
     
     def map_Ontocape_to_SFILES(self):
         """
