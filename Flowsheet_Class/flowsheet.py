@@ -530,12 +530,27 @@ class Flowsheet:
                     heat_exchanger_subs = [{**heat_exchanger_subs_in[i],**heat_exchanger_subs_out[i]} for i in range(0,len(heat_exchanger_subs_in))]
                     new_nodes = []
                     new_edges = []
-                    for i,hex_sub in enumerate(heat_exchanger_subs): 
+
+                    hex_sub_temp = False
+                    for i,hex_sub in enumerate(heat_exchanger_subs):
+                    # TODO: Test if this is correct. Break criterium not correct.
+
                         new_node = n+'/%d'%(i+1)
                         new_nodes.append(new_node) # nodes
+
+
                         for old_edge,attributes in hex_sub.items():
-                            new_edge = tuple(map(lambda i: str.replace(i, n,new_node), old_edge))
-                            new_edges.append((new_edge[0],new_edge[1],{'tags':attributes}))# edges with attributes
+                            if hex_sub_temp == hex_sub.get(old_edge):
+                                continue
+                            else:
+                                if old_edge[0] == old_edge[1]:
+                                    new_node_2 = n+'/%d'%(i+2)
+                                    new_edge = (new_node, new_node_2)
+                                    hex_sub_temp = hex_sub.get(old_edge)
+                                else:
+                                    new_edge = tuple(map(lambda i: str.replace(i, n,new_node), old_edge))
+
+                                new_edges.append((new_edge[0],new_edge[1],{'tags':attributes}))# edges with attributes
                     "Delete old node and associated edges first"
                     self.state.remove_node(n)
                     self.state.add_nodes_from(new_nodes)
