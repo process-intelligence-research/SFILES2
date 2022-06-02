@@ -560,7 +560,8 @@ class Flowsheet:
                                     new_edge = (new_node, new_node_2)
                                     hex_sub_temp = hex_sub.get(old_edge)
                                 else:
-                                    new_edge = tuple(map(lambda i: str.replace(i, n,new_node), old_edge))
+                                    new_edge = tuple(s if s != n else new_node for s in old_edge)
+                                    #new_edge = tuple(map(lambda i: str.replace(i, n,new_node), old_edge))
 
                                 new_edges.append((new_edge[0], new_edge[1], {'tags': attributes}))  # edges with attributes
                     "Delete old node and associated edges first"
