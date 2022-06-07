@@ -459,6 +459,12 @@ def SFILES_v2(flowsheet, sfiles, special_edges, remove_hex_tags=False):
         sfiles_v2 = flatten(sfiles_v2)
         _HI_counter += 1
 
+    # Store information about control structure in stream tag
+    for s_idx, s in enumerate(sfiles_v2):
+        if 'C' in s and '/' in s:
+            insert_element(sfiles_v2, [s_idx], '{' + str(s.split(sep='/')[1][:-1]) + '}')
+            sfiles_v2[s_idx] = s.split(sep='/')[0] + ')'
+
     return sfiles_v2
 
 

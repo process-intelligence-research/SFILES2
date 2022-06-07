@@ -22,9 +22,9 @@ else:
     print('Conversion back produced a different SFILES string. Input:', sfiles1, 'Output:', sfiles2)
 
 graph_two = nx.DiGraph()
-graph_two.add_nodes_from(['IO-1', 'IO-2', 'tank-1', 'C-1', 'v-1'])
+graph_two.add_nodes_from(['IO-1', 'IO-2', 'tank-1', 'C-1/LIR', 'v-1'])
 graph_two.add_edges_from([('IO-1', 'tank-1'),
-                          ('C-1', 'v-1', {'tags':{'he': [], 'col': [], 'ctrl':['LIR'], 'signal2unitop':[True]}}),
+                          ('C-1/LIR', 'v-1', {'tags':{'he': [], 'col': [], 'signal2unitop':[True]}}),
                           ('tank-1', 'C-1'), ('v-1', 'IO-2'), ('tank-1', 'v-1')])
 
 flowsheet_two = Flowsheet()
@@ -42,9 +42,10 @@ else:
 
 # 1) Measuring point at material stream
 graph_three = nx.MultiDiGraph()
-graph_three.add_nodes_from(['IO-1', 'IO-2', 'v-1', 'C-1'])
-graph_three.add_edges_from([('IO-1', 'C-1'), ('C-1', 'v-1', {'tags':{'signal': ['L']}}),
-                            ('C-1', 'v-1', {'tags':{'signal': ['FC']}}), ('v-1', 'IO-2')])
+graph_three.add_nodes_from(['IO-1', 'IO-2', 'v-1', 'C-1/FC'])
+graph_three.add_edges_from([('IO-1', 'C-1'), ('C-1/FC', 'v-1', {'tags': {'signal': ['L']}}),
+                            ('C-1/FC', 'v-1', {'tags': {'he': [], 'col': [], 'signal2unitop':[True]}}),
+                            ('v-1', 'IO-2')])
 
 flowsheet_three = Flowsheet()
 flowsheet_three.state = graph_three
