@@ -3,10 +3,10 @@ import networkx as nx
 
 # 1) Measuring point in/at unit operation
 graph_one = nx.DiGraph()
-graph_one.add_nodes_from(['IO-1', 'IO-2', 'tank-1', 'C-1', 'C-2'])
+graph_one.add_nodes_from(['IO-1', 'IO-2', 'tank-1', 'C-1/TIR', 'C-2/LIR'])
 graph_one.add_edges_from([('IO-1', 'tank-1'), ('tank-1', 'IO-2'),
-                          ('tank-1', 'C-1', {'tags':{'he': [], 'col': [], 'ctrl':['TIR']}}),
-                          ('tank-1', 'C-2', {'tags':{'he': [], 'col': [], 'ctrl':['LIR']}})])
+                          ('tank-1', 'C-1/TIR'),
+                          ('tank-1', 'C-2/LIR')])
 
 flowsheet_one = Flowsheet()
 flowsheet_one.state = graph_one
@@ -24,14 +24,14 @@ else:
 graph_two = nx.DiGraph()
 graph_two.add_nodes_from(['IO-1', 'IO-2', 'tank-1', 'C-1', 'v-1'])
 graph_two.add_edges_from([('IO-1', 'tank-1'),
-                          ('tank-1', 'v-1', {'tags':{'he': [], 'col': [], 'ctrl':['LIR'], 'signal2unitop':[True]}}),
-                          ('tank-1', 'C-1'), ('v-1', 'IO-2'), ('C-1', 'v-1')])
+                          ('C-1', 'v-1', {'tags':{'he': [], 'col': [], 'ctrl':['LIR'], 'signal2unitop':[True]}}),
+                          ('tank-1', 'C-1'), ('v-1', 'IO-2'), ('tank-1', 'v-1')])
 
 flowsheet_two = Flowsheet()
 flowsheet_two.state = graph_two
 flowsheet_two.convert_to_sfiles()
 sfiles1 = flowsheet_two.sfiles
-flowsheet_two.create_from_sfiles(sfiles1, override_nx=True)
+flowsheet_two.create_from_sfiles(sfiles1, override_nx=True, merge_HI_nodes=False)
 flowsheet_two.convert_to_sfiles()
 sfiles2 = flowsheet_two.sfiles
 if sfiles1 == sfiles2:

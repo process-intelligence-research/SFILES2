@@ -117,7 +117,7 @@ class Flowsheet:
 
             # current s is a unit operation
             # the following lines of code search the connections that are associated with the node s
-            if bool(re.match(r'\(.*?\)',s)):
+            if bool(re.match(r'\(.*?\)', s)):
                 
                 # Figure the edges, that are associated with the node
                 step = 0
@@ -128,7 +128,7 @@ class Flowsheet:
                     
                     # next list element is node, normal connection (without branches)
                     if not branches and bool(re.match(r'\(.*?\)', self.sfiles_list[s_idx+step])):
-                        edges.append((s[1:-1], self.sfiles_list[s_idx+step][1:-1], {'tags':tags}))
+                        edges.append((s[1:-1], self.sfiles_list[s_idx+step][1:-1], {'tags': tags}))
                         tags = []
                         break
                     
@@ -165,7 +165,7 @@ class Flowsheet:
                         while not (s_idx+step+1) == len(self.sfiles_list):
                             step += 1
                             if not found and bool(re.match(r'\(.*?\)', self.sfiles_list[s_idx+step])):
-                                edges.append((s[1:-1], self.sfiles_list[s_idx+step][1:-1], {'tags':tags}))
+                                edges.append((s[1:-1], self.sfiles_list[s_idx+step][1:-1], {'tags': tags}))
                                 tags = []
                                 found = True
                             if self.sfiles_list[s_idx+step] == '[':
@@ -239,15 +239,24 @@ class Flowsheet:
                 circle_pos = self.sfiles_list.index(missing[0])
             else: # % sign for cyc_nr>9
                 circle_pos = self.sfiles_list.index('%'+missing[0])
-            pre_op = list(filter(re.compile('\(.*?\)').match, self.sfiles_list[0 : circle_pos+1]))[-1]
+            pre_op = list(filter(re.compile('\(.*?\)').match, self.sfiles_list[0: circle_pos+1]))[-1]
             # search for <# and add connection to unit operation that <# refers to
-            i=self.sfiles_list.index('<' + missing[0])
-            for ii in range(0, i):
-                if bool(re.match(r'\(.*?\)', self.sfiles_list[i-ii])):
-                    cycle_op = self.sfiles_list[i-ii]
-                    edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags':missing[1]}))
-                    tags = []
-                    break
+            if '<' + missing[0] in self.sfiles_list:
+                i = self.sfiles_list.index('<' + missing[0])
+                for ii in range(0, i):
+                    if bool(re.match(r'\(.*?\)', self.sfiles_list[i-ii])):
+                        cycle_op = self.sfiles_list[i-ii]
+                        edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags':missing[1]}))
+                        tags = []
+                        break
+            elif '<_' + missing[0] in self.sfiles_list:
+                i = self.sfiles_list.index('<_' + missing[0])
+                for ii in range(0, i):
+                    if bool(re.match(r'\(.*?\)', self.sfiles_list[i-ii])):
+                        cycle_op = self.sfiles_list[i-ii]
+                        edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': 'signal'}))
+                        tags = []
+                        break
         
         """ In this next section we loop through the nodes and edges lists and create the flowsheet with all unit and 
         stream objects. Please note that add_unit should not be called with initialize_child=True 
@@ -260,8 +269,12 @@ class Flowsheet:
             # adjust tags: tags:[..] to tags:{'he':[..],'col':[..]}
             regex_he = re.compile(r"(hot.*|cold.*|[0-9].*|Null)") # Null at the moment is used in Aspen/DWSim graphs for missing hex tags
             regex_col = re.compile(r"(^t.*|^b.*)")
+            regex_signal = re.compile(r"(^T.*)")
             old_tags = connection[2]['tags']
-            tags = {'he':[m.group(0) for l in old_tags for m in [regex_he.search(l)] if m],'col':[m.group(0) for l in old_tags for m in [regex_col.search(l)] if m]}
+            # TODO: Fix this! What are old tags? Why is this step necessary?
+            tags = {'he': [m.group(0) for k in old_tags for m in [regex_he.search(k)] if m],
+                    'col': [m.group(0) for k in old_tags for m in [regex_col.search(k)] if m],
+                    'signal2unitop': [True if old_tags == 'signal' else False]}
             self.add_stream(connection[0], connection[1], tags=tags)
 
         """ Finally, the current self.state is not according to the OntoCape naming conventions so we map it back """
@@ -595,7 +608,6 @@ class Flowsheet:
 
         self.flowsheet_SFILES_names = flowsheet_SFILES
 
-
     def add_edge_tags(self, edges, nodes):
         """
         Helper function that assigns tags in SFILES (node related) to corresponding edges in graph
@@ -637,23 +649,23 @@ class Flowsheet:
         HI_hex = {}
         for s_idx, s in enumerate(self.sfiles_list):
 
-            if bool(re.match(r'\(.*?\)',s)): # current s is a unit operation
+            if bool(re.match(r'\(.*?\)', s)):  # Current s is a unit operation
                 unit_cat = s[1:-1]
-                if not unit_cat in unit_counting: # first unit in SFILES of that category
+                if unit_cat not in unit_counting:  # First unit in SFILES of that category
                     unit_counting[unit_cat] = 1
-                    unit_name = unit_cat +'-' +'1'
+                    unit_name = unit_cat + '-' + '1'
                     # Check if the current unit is a hex unit with heat integration -> Special node name
                     # Only if it's not the last token
-                    if s_idx<len(self.sfiles_list)-1:
-                        if bool(re.match(r'\{[0-9]+\}',self.sfiles_list[s_idx+1])):
+                    if s_idx < len(self.sfiles_list)-1:
+                        if bool(re.match(r'\{[0-9]+\}', self.sfiles_list[s_idx+1])):
                             _HI_number = self.sfiles_list[s_idx+1][1:-1]
-                            HI_hex[_HI_number]=(unit_name,1)
+                            HI_hex[_HI_number] = (unit_name, 1)
                             # Add HI notation to hex node name
                             unit_name = unit_name + '/1'
                 else: 
                     # Check if the current unit is a unit with heat integration -> Special node name
                     # Only possible if it's not the last token
-                    if s_idx<len(self.sfiles_list)-1:
+                    if s_idx < len(self.sfiles_list)-1:
                         if bool(re.match(r'\{[0-9]+\}',self.sfiles_list[s_idx+1])):
                             _HI_number = self.sfiles_list[s_idx+1][1:-1]
                             # Check if _HI_number is already in HI_hex dict keys
@@ -669,10 +681,10 @@ class Flowsheet:
                                 unit_name = unit_name + '/1'
                         else: 
                             unit_counting[unit_cat] += 1
-                            unit_name = unit_cat +'-' + str(unit_counting[unit_cat])
+                            unit_name = unit_cat + '-' + str(unit_counting[unit_cat])
                     else:
                         unit_counting[unit_cat] += 1
-                        unit_name = unit_cat +'-' + str(unit_counting[unit_cat])
+                        unit_name = unit_cat + '-' + str(unit_counting[unit_cat])
                 
                 # Modifiy the token in sfiles list
                 self.sfiles_list[s_idx] = '('+unit_name+')'

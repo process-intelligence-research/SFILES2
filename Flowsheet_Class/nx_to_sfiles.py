@@ -59,6 +59,8 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags):
     not_connected = set(flowsheet.nodes) - connected_to_virtual
     while not_connected:
         rank_not_connected = sort_by_rank(not_connected, ranks)
+        # Nodes with an out_degree of zero are removed since they are not suitable initial nodes.
+        rank_not_connected = [k for k in rank_not_connected if flowsheet.out_degree(k) > 0]
         flowsheet.add_edges_from([('virtual', rank_not_connected[0])])
         connected_to_virtual = set(nx.node_connected_component(flowsheet_undirected, 'virtual'))
         not_connected = set(flowsheet.nodes) - connected_to_virtual
@@ -78,6 +80,14 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags):
                                                               nr_pre_visited, ranks, nodes_position_setoffs,
                                                               nodes_position_setoffs_cycle, special_edges,
                                                               first_traversal=True, sfiles=[], node_insertion='')
+
+
+    # Search for signal to unitoperation connections and insert recycle numbering
+    # edge_infos = nx.get_edge_attributes(flowsheet, 'tags')
+    # edge_infos_signal = {k: flatten(v['signal2unitop']) for k, v in edge_infos.items() if 'signal2unitop' in v.keys()}
+    # TODO: edges noch zuvor nach rang sortieren, sodass recycle nummerierung immer gleich
+
+
 
     # Flatten nested list of sfile_part
     sfiles = flatten(sfiles)
@@ -137,6 +147,13 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
     nr_pre_visited: int
         counter variable
     """
+    edge_infos = nx.get_edge_attributes(flowsheet, 'tags')
+    edge_infos_ctrl = {k: flatten(v.values()) for k, v in edge_infos.items() if 'ctrl' in v.keys()}
+    # edge_infos_signal = {k: flatten(v.values()) for k, v in edge_infos.items() if 'signal2unitop' in v.keys()}
+    edge_infos_signal = {k: v for k, v in edge_infos.items() if 'signal2unitop' in v.keys()}
+    edge_infos_signal = {k: flatten(v['signal2unitop']) for k, v in edge_infos_signal.items() if v['signal2unitop']}
+    skip_dfs = False
+
     if current_node == 'virtual':
         visited.add(current_node)
         # Branching decision requires ranks of nodes:
@@ -166,6 +183,18 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                     sfiles.append('n|')
                     sfiles.extend(sfiles_part)
 
+        if neighbour == neighbours[-1]:
+            nr_pre_visited_signal = 0
+            for k, v in edge_infos_signal:
+                if edge_infos_signal[k, v][0]:
+                    nr_pre_visited_signal, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited, sfiles, sfiles,
+                                                                                         special_edges,
+                                                                                         nodes_position_setoffs,
+                                                                                         nodes_position_setoffs_cycle,
+                                                                                         v, k,
+                                                                                         inverse_special_edge=False,
+                                                                                         pos1_in_sfiles=False, signal=True)
+
     # DFS is performed if current_node is not already visited and not the artificially introduced virtual node.
     if current_node not in visited and not current_node == 'virtual':
         successors = list(flowsheet.successors(current_node))
@@ -183,12 +212,16 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                     sfiles_part.append('[')
 
                 if neighbour not in visited:
-                    sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet, neighbour,
-                                                                              sfiles_part, nr_pre_visited, ranks,
-                                                                              nodes_position_setoffs,
-                                                                              nodes_position_setoffs_cycle,
-                                                                              special_edges, first_traversal,
-                                                                              sfiles, node_insertion)
+                    if (current_node, successors[0]) in edge_infos_signal:
+                        if edge_infos_signal[(current_node, successors[0])][0]:
+                            skip_dfs = True
+                    if not skip_dfs:
+                        sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet, neighbour,
+                                                                                  sfiles_part, nr_pre_visited,
+                                                                                  ranks, nodes_position_setoffs,
+                                                                                  nodes_position_setoffs_cycle,
+                                                                                  special_edges, first_traversal,
+                                                                                  sfiles, node_insertion)
                     if not neighbour == neighbours[-1]:
                         sfiles_part.append(']')  # Close bracket/branch
 
@@ -247,10 +280,15 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
         elif len(successors) == 1:
             sfiles_part.append('(' + current_node + ')')
             visited.add(current_node)
-            sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet, successors[0], sfiles_part,
-                                                                      nr_pre_visited, ranks, nodes_position_setoffs,
-                                                                      nodes_position_setoffs_cycle, special_edges,
-                                                                      first_traversal, sfiles, node_insertion)
+            if (current_node, successors[0]) in edge_infos_signal:
+                if edge_infos_signal[(current_node, successors[0])][0]:
+                    skip_dfs = True
+            if not skip_dfs:
+                sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet, successors[0],
+                                                                          sfiles_part, nr_pre_visited, ranks,
+                                                                          nodes_position_setoffs,
+                                                                          nodes_position_setoffs_cycle, special_edges,
+                                                                          first_traversal, sfiles, node_insertion)
 
         # Dead end
         elif len(successors) == 0:
@@ -301,17 +339,17 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
 
 
 def insert_cycle(nr_pre_visited, sfiles_part, sfiles, special_edges, nodes_position_setoffs,
-                 nodes_position_setoffs_cycle, node1, node2, inverse_special_edge, pos1_in_sfiles):
+                 nodes_position_setoffs_cycle, node1, node2, inverse_special_edge, pos1_in_sfiles, signal=False):
     if pos1_in_sfiles:
         pos1 = position_finder(nodes_position_setoffs, node1, sfiles,
                                nodes_position_setoffs_cycle, cycle=False)
         nr_pre_visited += 1
-        insert_element(sfiles, pos1, '<' + str(nr_pre_visited))
+        insert_element(sfiles, pos1, '<' + ('_' if signal else '') + str(nr_pre_visited))
     else:
         pos1 = position_finder(nodes_position_setoffs, node1, sfiles_part,
                                nodes_position_setoffs_cycle, cycle=False)
         nr_pre_visited += 1
-        insert_element(sfiles_part, pos1, '<' + str(nr_pre_visited))
+        insert_element(sfiles_part, pos1, '<' + ('_' if signal else '') + str(nr_pre_visited))
 
     if node2 == 'last_node':
         node2 = last_node_finder(sfiles_part)
@@ -320,9 +358,9 @@ def insert_cycle(nr_pre_visited, sfiles_part, sfiles, special_edges, nodes_posit
 
     # According to SMILES notation, for two digit cycles a % sign is put before the number
     if nr_pre_visited > 9:
-        insert_element(sfiles_part, pos2, '%' + str(nr_pre_visited))
+        insert_element(sfiles_part, pos2, '%' + ('_' if signal else '') + str(nr_pre_visited))
     else:
-        insert_element(sfiles_part, pos2, str(nr_pre_visited))
+        insert_element(sfiles_part, pos2, ('_' if signal else '') + str(nr_pre_visited))
 
     # Additional info: edge is a cycle edge in SFILES
     if inverse_special_edge:
