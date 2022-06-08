@@ -215,7 +215,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
 
                 if neighbour not in visited:
                     if (current_node, successors[0]) in edge_infos_signal:
-                        if edge_infos_signal[(current_node, successors[0])][0]:
+                        if edge_infos_signal[(current_node, successors[0])][0] == 'other':
                             skip_dfs = True
                     if not skip_dfs:
                         sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet, neighbour,
@@ -283,7 +283,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
             sfiles_part.append('(' + current_node + ')')
             visited.add(current_node)
             if (current_node, successors[0]) in edge_infos_signal:
-                if edge_infos_signal[(current_node, successors[0])][0]:
+                if edge_infos_signal[(current_node, successors[0])][0] == 'other':
                     skip_dfs = True
             if not skip_dfs:
                 sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet, successors[0],

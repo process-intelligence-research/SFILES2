@@ -265,10 +265,14 @@ class Flowsheet:
                         break
             elif '<_' + missing[0] in self.sfiles_list:
                 i = self.sfiles_list.index('<_' + missing[0])
+
                 for ii in range(0, i):
                     if bool(re.match(pattern_node, self.sfiles_list[i-ii])):
-                        cycle_op = self.sfiles_list[i-ii]
-                        edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': 'signal'}))
+                        cycle_op = self.sfiles_list[i - ii]
+                        if i-self.sfiles_list.index(missing[0]) == 2:
+                            edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': 'next'}))
+                        else:
+                            edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': 'other'}))
                         tags = []
                         break
         
@@ -283,12 +287,12 @@ class Flowsheet:
             # adjust tags: tags:[..] to tags:{'he':[..],'col':[..]}
             regex_he = re.compile(r"(hot.*|cold.*|[0-9].*|Null)") # Null at the moment is used in Aspen/DWSim graphs for missing hex tags
             regex_col = re.compile(r"(^t.*|^b.*)")
-            regex_signal = re.compile(r"(^T.*)")
+            regex_signal = re.compile(r"other|next")
             old_tags = connection[2]['tags']
             # TODO: Fix this! What are old tags? Why is this step necessary?
             tags = {'he': [m.group(0) for k in old_tags for m in [regex_he.search(k)] if m],
                     'col': [m.group(0) for k in old_tags for m in [regex_col.search(k)] if m],
-                    'signal2unitop': [True if old_tags == 'signal' else False]}
+                    'signal2unitop': [m.group(0) for m in [regex_signal.search(str(old_tags))] if m]}
             self.add_stream(connection[0], connection[1], tags=tags)
 
         """ Finally, the current self.state is not according to the OntoCape naming conventions so we map it back """
