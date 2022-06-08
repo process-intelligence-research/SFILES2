@@ -148,7 +148,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
         counter variable
     """
     edge_infos = nx.get_edge_attributes(flowsheet, 'tags')
-    edge_infos_ctrl = {k: flatten(v.values()) for k, v in edge_infos.items() if 'ctrl' in v.keys()}
+    # edge_infos_ctrl = {k: flatten(v.values()) for k, v in edge_infos.items() if 'ctrl' in v.keys()}
     # edge_infos_signal = {k: flatten(v.values()) for k, v in edge_infos.items() if 'signal2unitop' in v.keys()}
     edge_infos_signal = {k: v for k, v in edge_infos.items() if 'signal2unitop' in v.keys()}
     edge_infos_signal = {k: flatten(v['signal2unitop']) for k, v in edge_infos_signal.items() if v['signal2unitop']}
@@ -183,17 +183,19 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                     sfiles.append('n|')
                     sfiles.extend(sfiles_part)
 
+        # After last traversal, search for signal connections.
         if neighbour == neighbours[-1]:
             nr_pre_visited_signal = 0
-            for k, v in edge_infos_signal:
-                if edge_infos_signal[k, v][0]:
-                    nr_pre_visited_signal, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited, sfiles, sfiles,
-                                                                                         special_edges,
-                                                                                         nodes_position_setoffs,
-                                                                                         nodes_position_setoffs_cycle,
-                                                                                         v, k,
-                                                                                         inverse_special_edge=False,
-                                                                                         pos1_in_sfiles=False, signal=True)
+            if bool(edge_infos_signal):
+                for k, v in edge_infos_signal:
+                    if edge_infos_signal[k, v][0]:
+                        nr_pre_visited_signal, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited, sfiles, sfiles,
+                                                                                             special_edges,
+                                                                                             nodes_position_setoffs,
+                                                                                             nodes_position_setoffs_cycle,
+                                                                                             v, k,
+                                                                                             inverse_special_edge=False,
+                                                                                             pos1_in_sfiles=False, signal=True)
 
     # DFS is performed if current_node is not already visited and not the artificially introduced virtual node.
     if current_node not in visited and not current_node == 'virtual':

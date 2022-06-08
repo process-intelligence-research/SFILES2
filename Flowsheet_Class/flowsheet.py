@@ -113,7 +113,7 @@ class Flowsheet:
         " Loop through sfiles list and create the graph. "
         # Initialize some variables
         last_ops = []  # Already visited operations
-        patter_node = r'\(.*?\)'  # Regex pattern for a node
+        pattern_node = r'\(.*?\)'  # Regex pattern for a node
         last_index = len(self.sfiles_list) - 1
 
         for token_idx, token in enumerate(self.sfiles_list):
@@ -121,7 +121,7 @@ class Flowsheet:
             last_ops.append(token)
 
             # If current token is a node, search the connections that are associated with the node.
-            if bool(re.match(patter_node, token)):
+            if bool(re.match(pattern_node, token)):
                 step = 0
                 branches = 0
 
@@ -129,30 +129,35 @@ class Flowsheet:
                     step += 1
                     
                     # Next list element is node, normal connection (no branches)
-                    if not branches and bool(re.match(patter_node, self.sfiles_list[token_idx+step])):
+                    if not branches and bool(re.match(pattern_node, self.sfiles_list[token_idx+step])):
                         edges.append((token[1:-1], self.sfiles_list[token_idx+step][1:-1], {'tags': tags}))
                         tags = []
                         break
                     
-                    # a branch is opened, 
-                    elif branches and bool(re.match(patter_node, self.sfiles_list[token_idx+step])):
+                    # Next list element is node, open branch
+                    elif branches and bool(re.match(pattern_node, self.sfiles_list[token_idx+step])):
                         edges.append((token[1:-1], self.sfiles_list[token_idx+step][1:-1], {'tags': tags}))
                         tags = []
                         branches -= 1
 
-                    # cycle: next list element is a single digit or multiple digit number of form %##
-                    elif self.sfiles_list[token_idx+step].isdecimal() or (self.sfiles_list[token_idx+step][0]=='%' and self.sfiles_list[token_idx+step][1:].isdecimal()):
-                        # previous unit operation
-                        pre_op = list(filter(re.compile(patter_node).match, last_ops))[-1]
+                    # Cycle: next list element is a single digit or a multiple digit number of form %##
+                    # TODO: introduce cycles always with %-sign. Then the elif criterium
+                    #  self.sfiles_list[token_idx+step][0] == '%' would be sufficient.
+                    # TODO: Do this step afterwards, when every node is known all cycles can be connected
+                    elif self.sfiles_list[token_idx+step].isdecimal() or\
+                            (self.sfiles_list[token_idx+step][0] == '%' and
+                             self.sfiles_list[token_idx+step][1:].isdecimal()):
+                        # Previous unit operation
+                        pre_op = list(filter(re.compile(pattern_node).match, last_ops))[-1]
                         # search for <# and add connection to unit operation that <# refers to
                         try:
                             # first make sure we remove the % sign in case the cycle number is >9
-                            cyc_nr = re.findall(r'\d+',self.sfiles_list[token_idx+step])[0]
+                            cyc_nr = re.findall(r'\d+', self.sfiles_list[token_idx+step])[0]
                             i = last_ops.index('<'+cyc_nr)
                             for ii in range(0, i+1):
-                                if bool(re.match(patter_node, last_ops[i-ii])):
+                                if bool(re.match(pattern_node, last_ops[i-ii])):
                                     cycle_op = last_ops[i-ii]
-                                    edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags':tags}))
+                                    edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': tags}))
                                     tags = []
                                     break
                         # if the <# operator is not in the last operations we need to add the connection later
@@ -160,38 +165,43 @@ class Flowsheet:
                             missing_circles.append((cyc_nr, tags))
                             tags = []
                     
-                    # A branch opens. The next lines of codes loop through the branch 
+                    # Branch opens. Looping through the branch until it is terminated.
                     elif self.sfiles_list[token_idx+step] == '[':
                         branches = 1
                         # TODO: What does variable found mean? Maybe also calculate len(self.sfiles_list)-1 in extra line to get rid of this ominous +1
+                        # TODO: Why is this looping required? Only next node is added to edges? Why not break if found=true?
                         found = False
-                        while not (token_idx+step+1) == len(self.sfiles_list):
+                        while not (token_idx + step) == last_index:
                             step += 1
-                            if not found and bool(re.match(patter_node, self.sfiles_list[token_idx+step])):
+                            if not found and bool(re.match(pattern_node, self.sfiles_list[token_idx+step])):
                                 edges.append((token[1:-1], self.sfiles_list[token_idx+step][1:-1], {'tags': tags}))
                                 tags = []
                                 found = True
+                            # If next token in sfiles_list is '[', a branch inside a branch is present.
                             if self.sfiles_list[token_idx+step] == '[':
                                 branches += 1
+                            # A branch inside a branch closes.
                             elif branches > 1 and self.sfiles_list[token_idx+step] == ']':
                                 branches -= 1
-                            # the right branch (==1) closes -> exit while loop of branch
+                            # The first opened branch (==1) closes and will cause the exit of the while loop of branch.
                             elif branches == 1 and self.sfiles_list[token_idx+step] == ']':
                                 branches -= 1
                                 tags = []
                                 break
-
                             # Tags in SFILES v2 in branch (usually the first token after branching)
-                            elif bool(re.match(r'\{.*?\}',self.sfiles_list[token_idx+step])):
-                                # we don't need to add the tags that are used for heat integration (those are incorporated in node names)
-                                # branches needs to be 1 otherwise the tags of subbranches might be added
-                                if not bool(re.match(r'^[0-9]+$',self.sfiles_list[token_idx+step][1:-1])) and branches ==1:
+                            elif bool(re.match(r'\{.*?\}', self.sfiles_list[token_idx+step])):
+                                # Tags that are used for heat integration are not required
+                                # (those are incorporated in node names)
+                                # Branches needs to be 1 otherwise the tags of subbranches might be added
+                                if not bool(re.match(r'^[0-9]+$', self.sfiles_list[token_idx+step][1:-1])) \
+                                        and branches == 1:
                                     tags.append(self.sfiles_list[token_idx+step][1:-1])
                     
-                    # New incoming branch, The next lines of code loop through incoming branch
+                    # New incoming branch
                     elif self.sfiles_list[token_idx+step] == '<&|':
-                        # Increase steps till the corresponding | or &| is reached and continue to look for connections of node
-                        _continue=1
+                        # Increase steps until the corresponding | or &| is reached and continue looking for
+                        # connections of node.
+                        _continue = 1
                         while _continue:
                             step += 1
                             if self.sfiles_list[token_idx+step] == '<&|':
@@ -199,23 +209,23 @@ class Flowsheet:
                             if self.sfiles_list[token_idx+step] == '|' or self.sfiles_list[token_idx+step] == '&|':
                                 _continue -= 1
                     
-                    # If we are inside an incoming branch |, &| can occur on this level of if clauses. 
-                    # We then just have to find the node the incoming branch is leading to,
-                    # and add the connection
+                    # Inside an incoming branch |, &| can occur on this level of if clauses.
+                    # Find the node the incoming branch is leading to and add the connection.
                     elif self.sfiles_list[token_idx+step] == '&' or self.sfiles_list[token_idx+step] == '&|':
                         # Run backwards through last operations, search for unit operations, 
-                        # but ignore everything if it'token in this or another incoming branch
+                        # but ignore everything if its token in this or another incoming branch
                         break_while = False
                         if self.sfiles_list[token_idx+step] == '&|':
-                            break_while = True # only break searching for connections, when the incoming branch has no branches itself
+                            # Only break searching for connections, when the incoming branch has no branches itself.
+                            break_while = True
                         _ignore = 1
                         for e in reversed(last_ops):
                             if e == '<&|':
-                                _ignore -=1
+                                _ignore -= 1
                             if e == '|' or e == '&|':
-                                _ignore +=1
-                            if not _ignore and bool(re.match(patter_node,e)):
-                                edges.append((token[1:-1], e[1:-1], {'tags':tags}))
+                                _ignore += 1
+                            if not _ignore and bool(re.match(pattern_node, e)):
+                                edges.append((token[1:-1], e[1:-1], {'tags': tags}))
                                 tags = []
                                 break
                         # break while loop
@@ -224,7 +234,7 @@ class Flowsheet:
 
                     # Tags in SFILES v2
                     elif bool(re.match(r'\{.*?\}', self.sfiles_list[token_idx+step])):
-                        # We don't need to add the tags that are used for heat integration
+                        # Tags that are used for heat integration are not required
                         # (those are incorporated in node names)
                         if not bool(re.match(r'^[0-9]+$', self.sfiles_list[token_idx+step][1:-1])):
                             tags.append(self.sfiles_list[token_idx+step][1:-1])
@@ -241,22 +251,22 @@ class Flowsheet:
             # previous unit operation
             if bool(re.match(r'^[0-9]$', missing[0])): 
                 circle_pos = self.sfiles_list.index(missing[0])
-            else: # % sign for cyc_nr>9
+            else:  # % sign for cyc_nr>9
                 circle_pos = self.sfiles_list.index('%'+missing[0])
-            pre_op = list(filter(re.compile('\(.*?\)').match, self.sfiles_list[0: circle_pos+1]))[-1]
+            pre_op = list(filter(re.compile(pattern_node).match, self.sfiles_list[0: circle_pos+1]))[-1]
             # search for <# and add connection to unit operation that <# refers to
             if '<' + missing[0] in self.sfiles_list:
                 i = self.sfiles_list.index('<' + missing[0])
                 for ii in range(0, i):
-                    if bool(re.match(r'\(.*?\)', self.sfiles_list[i-ii])):
+                    if bool(re.match(pattern_node, self.sfiles_list[i-ii])):
                         cycle_op = self.sfiles_list[i-ii]
-                        edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags':missing[1]}))
+                        edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': missing[1]}))
                         tags = []
                         break
             elif '<_' + missing[0] in self.sfiles_list:
                 i = self.sfiles_list.index('<_' + missing[0])
                 for ii in range(0, i):
-                    if bool(re.match(r'\(.*?\)', self.sfiles_list[i-ii])):
+                    if bool(re.match(pattern_node, self.sfiles_list[i-ii])):
                         cycle_op = self.sfiles_list[i-ii]
                         edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': 'signal'}))
                         tags = []
@@ -498,7 +508,7 @@ class Flowsheet:
         create_tags_map = {}
         state_copy = self.state.copy()
         for n in list(state_copy.nodes): 
-            if '/' in n: 
+            if '/' in n and not bool(re.match(r'.*/[A-Z]+', n)):
                 relabel_mapping[n] = n.split(sep='/')[0]
                 create_tags_map[n] = n.split(sep='/')[1]
     
@@ -507,9 +517,9 @@ class Flowsheet:
             edge_infos = nx.get_edge_attributes(state_copy, "tags")
             edge_in = list(state_copy.in_edges(n1))
             edge_out = list(state_copy.out_edges(n1))
-            edge_infos_in = [v for k,v in edge_infos.items() if k in edge_in][0] # only one item
+            edge_infos_in = [v for k, v in edge_infos.items() if k in edge_in][0]  # only one item
             edge_infos_in['he'].append('%s_in'%counter)
-            edge_infos_out = [v for k,v in edge_infos.items() if k in edge_out][0] # only one item
+            edge_infos_out = [v for k, v in edge_infos.items() if k in edge_out][0]  # only one item
             edge_infos_out['he'].append('%s_out'%counter)
             
             #remove old node and delete old edges + create new node if it does not exist and edges
@@ -666,6 +676,8 @@ class Flowsheet:
                             HI_hex[_HI_number] = (unit_name, 1)
                             # Add HI notation to hex node name
                             unit_name = unit_name + '/1'
+                        elif bool(re.match(r'\{[A-Z]+\}', self.sfiles_list[s_idx + 1])):
+                            unit_name = unit_name + '/' + self.sfiles_list[s_idx + 1][1:-1]
                 else: 
                     # Check if the current unit is a unit with heat integration -> Special node name
                     # Only possible if it's not the last token
@@ -685,6 +697,11 @@ class Flowsheet:
                                 unit_name = unit_cat + '-' + str(unit_counting[unit_cat])
                                 HI_hex[_HI_number] = (unit_name, 1)
                                 unit_name = unit_name + '/1'
+
+                        elif bool(re.match(r'\{[A-Z]+\}', self.sfiles_list[s_idx + 1])):
+                            unit_counting[unit_cat] += 1
+                            unit_name = unit_cat + '-' + str(unit_counting[unit_cat]) + '/' + \
+                                        self.sfiles_list[s_idx + 1][1:-1]
                         else:
                             # TODO: Introduce a separate function for these two lines of code?
                             unit_counting[unit_cat] += 1
