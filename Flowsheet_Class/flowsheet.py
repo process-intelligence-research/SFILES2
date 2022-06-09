@@ -141,13 +141,8 @@ class Flowsheet:
                         branches -= 1
 
                     # Cycle: next list element is a single digit or a multiple digit number of form %##
-                    # TODO: introduce cycles always with %-sign. Then the elif criterium
-                    #  self.sfiles_list[token_idx+step][0] == '%' would be sufficient.
-                    #elif self.sfiles_list[token_idx+step].isdecimal() or\
-                    #        (self.sfiles_list[token_idx+step][0] == '%' and
-                    #         self.sfiles_list[token_idx+step][1:].isdecimal()):
                     elif bool(re.match(r'^[%_]?\d+', self.sfiles_list[token_idx+step])):
-                        cyc_nr = re.findall(r'\d+', self.sfiles_list[token_idx + step])[0]
+                        cyc_nr = re.findall(r'^[%_]?\d+', self.sfiles_list[token_idx + step])[0]
                         missing_circles.append((cyc_nr, tags))
                         tags = []
 
@@ -235,24 +230,16 @@ class Flowsheet:
             # append the current string to already visited operations
         for missing in missing_circles:
             # previous unit operation
-            if bool(re.match(r'^[0-9]$', missing[0])): 
-                circle_pos = self.sfiles_list.index(missing[0])
-            else:  # % sign for cyc_nr>9
-                circle_pos = self.sfiles_list.index('%'+missing[0])
+            circle_pos = self.sfiles_list.index(missing[0])
+            #if bool(re.match(r'^[0-9]$', missing[0])):
+            #    circle_pos = self.sfiles_list.index(missing[0])
+            #else:  # % sign for cyc_nr>9
+            #    circle_pos = self.sfiles_list.index('%'+missing[0])
             pre_op = list(filter(re.compile(pattern_node).match, self.sfiles_list[0: circle_pos+1]))[-1]
             # search for <# and add connection to unit operation that <# refers to
-            if '<' + missing[0] in self.sfiles_list:
-                i = self.sfiles_list.index('<' + missing[0])
-                for ii in range(0, i+1):
-                    if bool(re.match(pattern_node, self.sfiles_list[i-ii])):
-                        cycle_op = self.sfiles_list[i-ii]
-                        edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': missing[1]}))
-                        tags = []
-                        break
-            # TODO: This causes problem if <d and <_d is present in sfile.
-            elif '<_' + missing[0] in self.sfiles_list:
-                i = self.sfiles_list.index('<_' + missing[0])
-
+            if '_' in missing[0]:
+                number = re.findall(r'\d+', missing[0])
+                i = self.sfiles_list.index('<_' + number[0])
                 for ii in range(0, i):
                     if bool(re.match(pattern_node, self.sfiles_list[i-ii])):
                         cycle_op = self.sfiles_list[i - ii]
@@ -262,6 +249,17 @@ class Flowsheet:
                             edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': 'other'}))
                         tags = []
                         break
+            else:
+                number = re.findall(r'\d+', missing[0])
+                i = self.sfiles_list.index('<' + number[0])
+                for ii in range(0, i+1):
+                    if bool(re.match(pattern_node, self.sfiles_list[i-ii])):
+                        cycle_op = self.sfiles_list[i-ii]
+                        edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': missing[1]}))
+                        tags = []
+                        break
+            # TODO: This causes problem if <d and <_d is present in sfile.
+
         
         """ In this next section we loop through the nodes and edges lists and create the flowsheet with all unit and 
         stream objects. Please note that add_unit should not be called with initialize_child=True 
@@ -453,7 +451,7 @@ class Flowsheet:
         """
 
         # First convert string to list
-        sfiles_regex_pattern = r"(\(.*?\)|\{.*?\}|\%\([0-9]{3}\)|\%[0-9]{2}|\]|\[|\<.?[0-9]|\<\&\||(?<!\<)\&\||n\||(?<!\&)(?<!n)\||\&(?!\|)|\/[0-9]|[0-9])"
+        sfiles_regex_pattern = r"(\(.+?\)|\{.+?\}|[<%_]+\d+|\]|\[|\<\&\||(?<!<)&\||n\||(?<!&)(?<!n)\||&(?!\|)|\d)"
         regex = re.compile(sfiles_regex_pattern)
         sfiles_list = [token for token in regex.findall(self.sfiles)]
         # TODO: Remove lines below if not used!

@@ -359,8 +359,8 @@ def insert_cycle(nr_pre_visited, sfiles_part, sfiles, special_edges, nodes_posit
                            nodes_position_setoffs_cycle, cycle=True)
 
     # According to SMILES notation, for two digit cycles a % sign is put before the number
-    if nr_pre_visited > 9:
-        insert_element(sfiles_part, pos2, '%' + ('_' if signal else '') + str(nr_pre_visited))
+    if nr_pre_visited > 9 and not signal:
+        insert_element(sfiles_part, pos2, '%' + str(nr_pre_visited))
     else:
         insert_element(sfiles_part, pos2, ('_' if signal else '') + str(nr_pre_visited))
 

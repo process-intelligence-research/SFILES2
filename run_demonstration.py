@@ -95,15 +95,15 @@ flowsheet_2.create_from_sfiles()
 flowsheet_2.convert_to_sfiles(version='v2')
 print(flowsheet_2.sfiles)
 
-flowsheet_2=Flowsheet()
-sfiles_in="(raw)(flash)[{tout}(prod)]{bout}(splt)[(prod)](r)<&|(raw)(flash){tout}&{bout}(prod)|(prod)" # has to be valid according to SFILES rules
+flowsheet_2 = Flowsheet()
+sfiles_in = "(raw)(hex){1}(flash)[{tout}(splt)[(prod)](prod)]{bout}(splt)[(prod)](r)<&|(raw)(flash){tout}&{bout}(prod)|(prod)n|(raw)(hex){1}(prod)" # has to be valid according to SFILES rules
 flowsheet_2.create_from_sfiles(sfiles_in)
 flowsheet_2.visualize_flowsheet(table=False, pfd_path='plots/flowsheet3', plot_with_stream_labels=False)
 
 # Check if conversion back works
-flowsheet_2.sfiles=""
+flowsheet_2.sfiles = ""
 flowsheet_2.convert_to_sfiles(version='v2')
-if sfiles_in==flowsheet_2.sfiles:
+if sfiles_in == flowsheet_2.sfiles:
     print('Conversion back successful')
 else:
     print('Conversion back produced a different SFILES string. Input:', sfiles_in, 'Output:', flowsheet_2.sfiles)
