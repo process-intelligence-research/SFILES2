@@ -143,9 +143,10 @@ class Flowsheet:
                     # Cycle: next list element is a single digit or a multiple digit number of form %##
                     # TODO: introduce cycles always with %-sign. Then the elif criterium
                     #  self.sfiles_list[token_idx+step][0] == '%' would be sufficient.
-                    elif self.sfiles_list[token_idx+step].isdecimal() or\
-                            (self.sfiles_list[token_idx+step][0] == '%' and
-                             self.sfiles_list[token_idx+step][1:].isdecimal()):
+                    #elif self.sfiles_list[token_idx+step].isdecimal() or\
+                    #        (self.sfiles_list[token_idx+step][0] == '%' and
+                    #         self.sfiles_list[token_idx+step][1:].isdecimal()):
+                    elif bool(re.match(r'^[%_]?\d+', self.sfiles_list[token_idx+step])):
                         cyc_nr = re.findall(r'\d+', self.sfiles_list[token_idx + step])[0]
                         missing_circles.append((cyc_nr, tags))
                         tags = []
