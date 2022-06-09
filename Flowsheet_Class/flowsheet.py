@@ -143,28 +143,13 @@ class Flowsheet:
                     # Cycle: next list element is a single digit or a multiple digit number of form %##
                     # TODO: introduce cycles always with %-sign. Then the elif criterium
                     #  self.sfiles_list[token_idx+step][0] == '%' would be sufficient.
-                    # TODO: Do this step afterwards, when every node is known all cycles can be connected
                     elif self.sfiles_list[token_idx+step].isdecimal() or\
                             (self.sfiles_list[token_idx+step][0] == '%' and
                              self.sfiles_list[token_idx+step][1:].isdecimal()):
-                        # Previous unit operation
-                        pre_op = list(filter(re.compile(pattern_node).match, last_ops))[-1]
-                        # search for <# and add connection to unit operation that <# refers to
-                        try:
-                            # first make sure we remove the % sign in case the cycle number is >9
-                            cyc_nr = re.findall(r'\d+', self.sfiles_list[token_idx+step])[0]
-                            i = last_ops.index('<'+cyc_nr)
-                            for ii in range(0, i+1):
-                                if bool(re.match(pattern_node, last_ops[i-ii])):
-                                    cycle_op = last_ops[i-ii]
-                                    edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': tags}))
-                                    tags = []
-                                    break
-                        # if the <# operator is not in the last operations we need to add the connection later
-                        except ValueError: 
-                            missing_circles.append((cyc_nr, tags))
-                            tags = []
-                    
+                        cyc_nr = re.findall(r'\d+', self.sfiles_list[token_idx + step])[0]
+                        missing_circles.append((cyc_nr, tags))
+                        tags = []
+
                     # Branch opens. Looping through the branch until it is terminated.
                     elif self.sfiles_list[token_idx+step] == '[':
                         branches = 1
@@ -257,12 +242,13 @@ class Flowsheet:
             # search for <# and add connection to unit operation that <# refers to
             if '<' + missing[0] in self.sfiles_list:
                 i = self.sfiles_list.index('<' + missing[0])
-                for ii in range(0, i):
+                for ii in range(0, i+1):
                     if bool(re.match(pattern_node, self.sfiles_list[i-ii])):
                         cycle_op = self.sfiles_list[i-ii]
                         edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': missing[1]}))
                         tags = []
                         break
+            # TODO: This causes problem if <d and <_d is present in sfile.
             elif '<_' + missing[0] in self.sfiles_list:
                 i = self.sfiles_list.index('<_' + missing[0])
 

@@ -582,11 +582,17 @@ def calc_graph_invariant(flowsheet):
             maximum_iteration += 1
             morgan_iter = morgan_iter @ adjacency_matrix
             unique_values = np.unique(morgan_iter).size
-            if unique_values == unique_values_temp:
-                counter += 1
-            else:
+            if unique_values > unique_values_temp:
                 unique_values_temp = unique_values
                 morgan_iter_dict = dict(zip(node_labels, morgan_iter))
+            else:
+                counter += 1
+
+            #if unique_values == unique_values_temp:
+            #    counter += 1
+            #else:
+            #    unique_values_temp = unique_values
+            #    morgan_iter_dict = dict(zip(node_labels, morgan_iter))
 
         # Assign ranks based on the connectivity values
         r = {key: rank for rank, key in enumerate(sorted(set(morgan_iter_dict.values())), 1)}
@@ -619,9 +625,20 @@ def calc_graph_invariant(flowsheet):
                     dfs_tr = nx.dfs_tree(sg, source=n)
                     dfs_trees.append(dfs_tr)
 
-                # we remove the numbering of the nodes (the numbering should not change the generalized SFILES!)    
-                dfs_trees_generalized = {eq_ranked_nodes[i]: [el.split(sep='-')[0] for el in list(dfs_trees[i].nodes)]
-                                         for i in range(0, len(eq_ranked_nodes))}
+                # we remove the numbering of the nodes (the numbering should not change the generalized SFILES!)
+                # TODO: This step is not robust. See Onenote. Maybe sort edges alphabetically.
+                #dfs_trees_generalized = {eq_ranked_nodes[i]: [el.split(sep='-')[0] for el in list(dfs_trees[i].nodes)]
+                #                         for i in range(0, len(eq_ranked_nodes))}
+
+                sorted_edges = []
+                for k in range(0, len(eq_ranked_nodes)):
+                    edges = sorted(list(dfs_trees[k].edges), key=lambda element: (element[0], element[1]))
+                    edges = [(k.split(sep='-')[0], v.split(sep='-')[0]) for k, v in edges]
+                    sorted_edge = sorted(edges, key=lambda element: (element[0], element[1]))
+                    sorted_edge = [i for sub in sorted_edge for i in sub]
+                    sorted_edges.append(sorted_edge)
+
+                dfs_trees_generalized = {eq_ranked_nodes[i]: sorted_edges[i] for i in range(0, len(eq_ranked_nodes))}
 
                 # We sort the nodes by 4 criteria: Input/output/other node, number of successors in dfs_tree,
                 # successors names (without numbering), node names with numbering
