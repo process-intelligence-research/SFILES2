@@ -150,8 +150,8 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
     edge_infos = nx.get_edge_attributes(flowsheet, 'tags')
     # edge_infos_ctrl = {k: flatten(v.values()) for k, v in edge_infos.items() if 'ctrl' in v.keys()}
     # edge_infos_signal = {k: flatten(v.values()) for k, v in edge_infos.items() if 'signal2unitop' in v.keys()}
-    edge_infos_signal = {k: v for k, v in edge_infos.items() if 'signal2unitop' in v.keys()}
-    edge_infos_signal = {k: flatten(v['signal2unitop']) for k, v in edge_infos_signal.items() if v['signal2unitop']}
+    edge_infos_signal = {k: v for k, v in edge_infos.items() if 'signal' in v.keys()}
+    edge_infos_signal = {k: flatten(v['signal']) for k, v in edge_infos_signal.items() if v['signal']}
     skip_dfs = False
 
     if current_node == 'virtual':
@@ -187,9 +187,14 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
         if neighbour == neighbours[-1]:
             nr_pre_visited_signal = 0
             edge_infos = nx.get_edge_attributes(flowsheet, 'tags')
-            edge_infos_signal = {k: v for k, v in edge_infos.items() if 'signal2unitop' in v.keys()}
-            edge_infos_signal = {k: flatten(v['signal2unitop']) for k, v in edge_infos_signal.items() if
-                                 v['signal2unitop']}
+            edge_infos_signal = {k: v for k, v in edge_infos.items() if 'signal' in v.keys()}
+            edge_infos_signal = {k: flatten(v['signal']) for k, v in edge_infos_signal.items() if
+                                 v['signal']}
+            res_list = [x[0] for x in edge_infos_signal.keys()]
+            if res_list:
+                res_list_sorted = sort_by_rank(res_list, ranks)
+                edge_infos_signal = dict(sorted(edge_infos_signal.items(), key=lambda pair: res_list_sorted.index(pair[0][0])))
+
             if bool(edge_infos_signal):
                 for k, v in edge_infos_signal:
                     if edge_infos_signal[k, v][0]:
@@ -219,7 +224,8 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
 
                 if neighbour not in visited:
                     if (current_node, successors[0]) in edge_infos_signal:
-                        if edge_infos_signal[(current_node, successors[0])][0] == 'other':
+                        if edge_infos_signal[(current_node, successors[0])][0] == 'not_next_unitop' or \
+                                edge_infos_signal[(current_node, successors[0])][0] == 'next_signal':
                             skip_dfs = True
                     if not skip_dfs:
                         sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet, neighbour,
@@ -251,7 +257,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
 
                     if bool(re.match(r'C-\d+\/[A-Z]+', current_node)):
                         flowsheet.add_edges_from([(current_node, neighbour,
-                                                   {'tags': {'signal2unitop': ['other']}})])
+                                                   {'tags': {'signal': ['not_next_unitop']}})])
                     # Only insert sfiles once. If there are multiple backloops to previous traversal,
                     # treat them as cycles.
                     # Insert a & sign where branch connects to node of previous traversal
@@ -291,7 +297,8 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
             sfiles_part.append('(' + current_node + ')')
             visited.add(current_node)
             if (current_node, successors[0]) in edge_infos_signal:
-                if edge_infos_signal[(current_node, successors[0])][0] == 'other':
+                if edge_infos_signal[(current_node, successors[0])][0] == 'not_next_unitop' \
+                        or edge_infos_signal[(current_node, successors[0])][0] == 'next_signal':
                     skip_dfs = True
             if not skip_dfs:
                 sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet, successors[0],
@@ -310,7 +317,12 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
 
         # Incoming branches are inserted at mixing point in SFILES surrounded by <&|...&|
         # Only insert sfiles once. If there are multiple backloops to previous traversal, treat them as cycles.
-        if node_insertion == '' and '(' + current_node + ')' in flatten(sfiles):
+        # TODO: Check if this is correct!
+        if bool(re.match(r'C-\d+\/[A-Z]+', current_node)):
+            for i in flowsheet.predecessors(current_node):
+                if bool(re.match(r'C-\d+\/[A-Z]+', i)):
+                    flowsheet.add_edges_from([(i, current_node, {'tags': {'signal': ['next_signal']}})])
+        elif node_insertion == '' and '(' + current_node + ')' in flatten(sfiles):
             # Insert a & sign where branch connects to node of previous traversal
             node_insertion = current_node
             last_node = last_node_finder(sfiles_part)
@@ -560,8 +572,15 @@ def calc_graph_invariant(flowsheet):
         ranks of graph nodes 
     
     """
+    edge_infos = nx.get_edge_attributes(flowsheet, 'tags')
+    edge_infos_signal = {k: v for k, v in edge_infos.items() if 'signal' in v.keys()}
+    edge_infos_signal = {k: flatten(v['signal']) for k, v in edge_infos_signal.items() if v['signal'] == ['next_signal']}
+    flowsheet_temp = flowsheet.copy()
+
+    flowsheet_temp.remove_edges_from(edge_infos_signal.keys())
+
     # First generate subgraphs (different mass trains in flowsheet)
-    _sgs = [flowsheet.subgraph(c).copy() for c in nx.weakly_connected_components(flowsheet)]
+    _sgs = [flowsheet_temp.subgraph(c).copy() for c in nx.weakly_connected_components(flowsheet_temp)]
     # Sort subgraphs, such that larger subgraphs are used first
     _sgs.sort(key=lambda x: -len(list(x.nodes)))
     rank_offset = 0

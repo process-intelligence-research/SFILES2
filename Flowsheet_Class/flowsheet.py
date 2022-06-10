@@ -249,9 +249,11 @@ class Flowsheet:
                         edges_wo_tags = [x[0:2] for x in edges]
                         if (pre_op[1:-1], cycle_op[1:-1]) in edges_wo_tags:
                         # TODO: if there are previous tags for the edge they may be overwritten. Fix this!
-                            edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': 'next'}))
+                            edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': 'next_unitop'}))
+                        elif bool(re.match(r'C-\d+\/[A-Z]+', pre_op[1:-1])) and bool(re.match(r'C-\d+\/[A-Z]+', cycle_op[1:-1])):
+                            edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': 'next_signal'}))
                         else:
-                            edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': 'other'}))
+                            edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': 'not_next_unitop'}))
                         tags = []
                         break
             else:
@@ -276,13 +278,14 @@ class Flowsheet:
         for connection in edges:
             # adjust tags: tags:[..] to tags:{'he':[..],'col':[..]}
             regex_he = re.compile(r"(hot.*|cold.*|[0-9].*|Null)") # Null at the moment is used in Aspen/DWSim graphs for missing hex tags
-            regex_col = re.compile(r"(^t.*|^b.*)")
-            regex_signal = re.compile(r"other|next")
+            #regex_col = re.compile(r"(^t.*|^b.*)")
+            regex_col = re.compile(r"(tout|tin|bout|bin)")
+            regex_signal = re.compile(r"not_next_unitop|next_unitop|next_signal")
             old_tags = connection[2]['tags']
             # TODO: Fix this! What are old tags? Why is this step necessary?
             tags = {'he': [m.group(0) for k in old_tags for m in [regex_he.search(k)] if m],
                     'col': [m.group(0) for k in old_tags for m in [regex_col.search(k)] if m],
-                    'signal2unitop': [m.group(0) for m in [regex_signal.search(str(old_tags))] if m]}
+                    'signal': [m.group(0) for m in [regex_signal.search(str(old_tags))] if m]}
             self.add_stream(connection[0], connection[1], tags=tags)
 
         """ Finally, the current self.state is not according to the OntoCape naming conventions so we map it back """

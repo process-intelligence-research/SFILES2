@@ -23,7 +23,7 @@ else:
 
 graph_two = nx.DiGraph()
 graph_two.add_nodes_from(['IO-1', 'IO-2', 'tank-1', 'C-1/LIR', 'v-1'])
-graph_two.add_edges_from([('IO-1', 'tank-1'), ('C-1/LIR', 'v-1', {'tags': {'signal2unitop': ['other']}}),
+graph_two.add_edges_from([('IO-1', 'tank-1'), ('C-1/LIR', 'v-1', {'tags': {'signal': ['not_next_unitop']}}),
                           ('tank-1', 'C-1/LIR'), ('v-1', 'IO-2'), ('tank-1', 'v-1')])
 
 flowsheet_two = Flowsheet()
@@ -42,7 +42,7 @@ else:
 # 2) Measuring point at material stream
 graph_three = nx.DiGraph()
 graph_three.add_nodes_from(['IO-1', 'IO-2', 'v-1', 'C-1/FC'])
-graph_three.add_edges_from([('IO-1', 'C-1/FC'), ('C-1/FC', 'v-1', {'tags': {'signal2unitop': ['next']}}),
+graph_three.add_edges_from([('IO-1', 'C-1/FC'), ('C-1/FC', 'v-1', {'tags': {'signal': ['next_unitop']}}),
                             ('v-1', 'IO-2')])
 
 flowsheet_three = Flowsheet()
@@ -62,8 +62,8 @@ else:
 graph_four = nx.DiGraph()
 graph_four.add_nodes_from(['IO-1', 'IO-2', 'v-1', 'C-1/LC', 'C-2/FC', 'tank-1'])
 graph_four.add_edges_from([('IO-1', 'tank-1'), ('tank-1', 'C-1/LC'),
-                            ('C-1/LC', 'C-2/FC', {'tags': {'signal2unitop': ['other']}}), ('tank-1', 'C-2/FC'),
-                            ('C-2/FC', 'v-1', {'tags': {'signal2unitop': ['next']}}), ('v-1', 'IO-2')])
+                            ('C-1/LC', 'C-2/FC', {'tags': {'signal': ['next_signal']}}), ('tank-1', 'C-2/FC'),
+                            ('C-2/FC', 'v-1', {'tags': {'signal': ['next_unitop']}}), ('v-1', 'IO-2')])
 
 flowsheet_four = Flowsheet()
 flowsheet_four.state = graph_four
@@ -80,7 +80,7 @@ else:
 
 # A)
 graph = nx.DiGraph()
-graph.add_edges_from([('IO-1', 'C-1/FC'), ('C-1/FC', 'v-1', {'tags': {'signal2unitop': ['next']}}), ('v-1', 'IO-2')])
+graph.add_edges_from([('IO-1', 'C-1/FC'), ('C-1/FC', 'v-1', {'tags': {'signal': ['next_unitop']}}), ('v-1', 'IO-2')])
 
 flowsheet = Flowsheet()
 flowsheet.state = graph
@@ -97,8 +97,8 @@ else:
 
 # B)
 graph = nx.DiGraph()
-graph.add_edges_from([('IO-1', 'C-1/F'), ('C-1/F', 'C-2/FFC'),
-                      ('C-2/FFC', 'v-1', {'tags': {'signal2unitop': ['next']}}), ('v-1', 'IO-2'), ('IO-3', 'C-3/F'),
+graph.add_edges_from([('IO-1', 'C-1/F'), ('C-1/F', 'C-2/FFC', {'tags': {'signal': ['next_signal']}}),
+                      ('C-2/FFC', 'v-1', {'tags': {'signal': ['next_unitop']}}), ('v-1', 'IO-2'), ('IO-3', 'C-3/F'),
                       ('C-3/F', 'C-2/FFC'), ('C-3/F', 'IO-4')])
 
 flowsheet = Flowsheet()
@@ -111,5 +111,24 @@ sfiles2 = flowsheet.sfiles
 if sfiles1 == sfiles2:
     print('Conversion back successful')
     print('B: ', sfiles1)
+else:
+    print('Conversion back produced a different SFILES string. Input:', sfiles1, 'Output:', sfiles2)
+
+# C)
+graph = nx.DiGraph()
+graph.add_edges_from([('IO-1', 'C-1/T'), ('C-1/T', 'IO-2'), ('IO-3', 'C-2/FQC'),
+                      ('C-1/T', 'C-2/FQC', {'tags': {'signal': ['next_signal']}}),
+                      ('C-2/FQC', 'v-1', {'tags': {'signal': ['next_unitop']}}), ('v-1', 'IO-4')])
+
+flowsheet = Flowsheet()
+flowsheet.state = graph
+flowsheet.convert_to_sfiles()
+sfiles1 = flowsheet.sfiles
+flowsheet.create_from_sfiles(sfiles1, override_nx=True)
+flowsheet.convert_to_sfiles()
+sfiles2 = flowsheet.sfiles
+if sfiles1 == sfiles2:
+    print('Conversion back successful')
+    print('C: ', sfiles1)
 else:
     print('Conversion back produced a different SFILES string. Input:', sfiles1, 'Output:', sfiles2)
