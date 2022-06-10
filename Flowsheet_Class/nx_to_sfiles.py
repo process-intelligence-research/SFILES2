@@ -796,10 +796,11 @@ def rank_by_dfs_tree(dfs_trees_generalized):
 
     output_nodes = {}
     input_nodes = {}
+    signal_nodes = {}
     other_nodes = {}
     for n, s in dfs_trees_generalized.items():
         succ_str = ''.join(list(s))
-        if succ_str == 'prod':
+        if 'prod' in n:
             # output node
             output_nodes[n] = (len(dfs_trees_generalized[n]), succ_str)
 
@@ -807,6 +808,9 @@ def rank_by_dfs_tree(dfs_trees_generalized):
             # input node
             input_nodes[n] = (len(dfs_trees_generalized[n]), succ_str)
 
+        elif bool(re.match(r'C-\d+', n)):
+            # Signal node
+            signal_nodes[n] = (len(dfs_trees_generalized[n]), succ_str)
         else:
             # other node
             other_nodes[n] = (len(dfs_trees_generalized[n]), succ_str)
@@ -816,7 +820,7 @@ def rank_by_dfs_tree(dfs_trees_generalized):
     # real node name (with numbering is only accessed if the generalized string is the same
     # -> graph structure is the same)
     sorted_nodes = []
-    for d in [output_nodes, input_nodes]:
+    for d in [signal_nodes, output_nodes, input_nodes]:
         # 3 sort criteria in that order list length (- sign), then generalized string alphabetically, then node number
         sorted_nodes_sub = sorted(d, key=lambda k: (-d[k][0], d[k][1], int(re.split('-|/', k)[1])))
         sorted_nodes.extend(sorted_nodes_sub)  # implies the order of first output, then input, then other nodes
