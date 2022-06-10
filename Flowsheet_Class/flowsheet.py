@@ -243,7 +243,12 @@ class Flowsheet:
                 for ii in range(0, i):
                     if bool(re.match(pattern_node, self.sfiles_list[i-ii])):
                         cycle_op = self.sfiles_list[i - ii]
-                        if i-self.sfiles_list.index(missing[0]) == 2:
+                        #string = ''.join(self.sfiles_list[circle_pos:i-1])
+                        #if bool(re.findall(r'[_<%\d]+', string)) and not bool(re.findall(r'[\(\)\[\]\|]', string)):
+                        #if i-self.sfiles_list.index(missing[0]) == 2:
+                        edges_wo_tags = [x[0:2] for x in edges]
+                        if (pre_op[1:-1], cycle_op[1:-1]) in edges_wo_tags:
+                        # TODO: if there are previous tags for the edge they may be overwritten. Fix this!
                             edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': 'next'}))
                         else:
                             edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': 'other'}))

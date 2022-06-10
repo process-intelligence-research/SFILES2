@@ -23,8 +23,7 @@ else:
 
 graph_two = nx.DiGraph()
 graph_two.add_nodes_from(['IO-1', 'IO-2', 'tank-1', 'C-1/LIR', 'v-1'])
-graph_two.add_edges_from([('IO-1', 'tank-1'),
-                          ('C-1/LIR', 'v-1', {'tags':{'he': [], 'col': [], 'signal2unitop':['other']}}),
+graph_two.add_edges_from([('IO-1', 'tank-1'), ('C-1/LIR', 'v-1', {'tags': {'signal2unitop': ['other']}}),
                           ('tank-1', 'C-1/LIR'), ('v-1', 'IO-2'), ('tank-1', 'v-1')])
 
 flowsheet_two = Flowsheet()
@@ -43,9 +42,7 @@ else:
 # 2) Measuring point at material stream
 graph_three = nx.DiGraph()
 graph_three.add_nodes_from(['IO-1', 'IO-2', 'v-1', 'C-1/FC'])
-graph_three.add_edges_from([('IO-1', 'C-1/FC'),
-                            #('C-1/FC', 'v-1'),
-                            ('C-1/FC', 'v-1', {'tags': {'he': [], 'col': [], 'signal2unitop':['next']}}),
+graph_three.add_edges_from([('IO-1', 'C-1/FC'), ('C-1/FC', 'v-1', {'tags': {'signal2unitop': ['next']}}),
                             ('v-1', 'IO-2')])
 
 flowsheet_three = Flowsheet()
@@ -55,6 +52,26 @@ sfiles1 = flowsheet_three.sfiles
 flowsheet_three.create_from_sfiles(sfiles1, override_nx=True)
 flowsheet_three.convert_to_sfiles()
 sfiles2 = flowsheet_three.sfiles
+if sfiles1 == sfiles2:
+    print('Conversion back successful')
+    print(sfiles1)
+else:
+    print('Conversion back produced a different SFILES string. Input:', sfiles1, 'Output:', sfiles2)
+
+# 3) Cascade control
+graph_four = nx.DiGraph()
+graph_four.add_nodes_from(['IO-1', 'IO-2', 'v-1', 'C-1/LC', 'C-2/FC', 'tank-1'])
+graph_four.add_edges_from([('IO-1', 'tank-1'), ('tank-1', 'C-1/LC'),
+                            ('C-1/LC', 'C-2/FC', {'tags': {'signal2unitop': ['other']}}), ('tank-1', 'C-2/FC'),
+                            ('C-2/FC', 'v-1', {'tags': {'signal2unitop': ['next']}}), ('v-1', 'IO-2')])
+
+flowsheet_four = Flowsheet()
+flowsheet_four.state = graph_four
+flowsheet_four.convert_to_sfiles()
+sfiles1 = flowsheet_four.sfiles
+flowsheet_four.create_from_sfiles(sfiles1, override_nx=True)
+flowsheet_four.convert_to_sfiles()
+sfiles2 = flowsheet_four.sfiles
 if sfiles1 == sfiles2:
     print('Conversion back successful')
     print(sfiles1)

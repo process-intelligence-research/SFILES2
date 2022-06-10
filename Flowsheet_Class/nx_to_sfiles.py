@@ -189,7 +189,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
             if bool(edge_infos_signal):
                 for k, v in edge_infos_signal:
                     if edge_infos_signal[k, v][0]:
-                        nr_pre_visited_signal, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited, sfiles, sfiles,
+                        nr_pre_visited_signal, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited_signal, sfiles, sfiles,
                                                                                              special_edges,
                                                                                              nodes_position_setoffs,
                                                                                              nodes_position_setoffs_cycle,
