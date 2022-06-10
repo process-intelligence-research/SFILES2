@@ -132,3 +132,22 @@ if sfiles1 == sfiles2:
     print('C: ', sfiles1)
 else:
     print('Conversion back produced a different SFILES string. Input:', sfiles1, 'Output:', sfiles2)
+
+# D)
+graph = nx.DiGraph()
+graph.add_edges_from([('IO-1', 'hex-1/1'), ('hex-1/1', 'C-1/TC'), ('C-1/TC', 'IO-2'), ('IO-3', 'C-2/FC'),
+                      ('C-2/FC', 'v-1', {'tags': {'signal': ['next_unitop']}}), ('v-1', 'hex-1/2'),
+                      ('hex-1/2', 'IO-4'), ('C-1/TC', 'C-2/FC', {'tags': {'signal': ['next_signal']}})])
+
+flowsheet = Flowsheet()
+flowsheet.state = graph
+flowsheet.convert_to_sfiles()
+sfiles1 = flowsheet.sfiles
+flowsheet.create_from_sfiles(sfiles1, override_nx=True)
+flowsheet.convert_to_sfiles()
+sfiles2 = flowsheet.sfiles
+if sfiles1 == sfiles2:
+    print('Conversion back successful')
+    print('D: ', sfiles1)
+else:
+    print('Conversion back produced a different SFILES string. Input:', sfiles1, 'Output:', sfiles2)
