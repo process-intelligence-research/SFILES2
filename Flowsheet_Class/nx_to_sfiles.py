@@ -186,6 +186,10 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
         # After last traversal, search for signal connections.
         if neighbour == neighbours[-1]:
             nr_pre_visited_signal = 0
+            edge_infos = nx.get_edge_attributes(flowsheet, 'tags')
+            edge_infos_signal = {k: v for k, v in edge_infos.items() if 'signal2unitop' in v.keys()}
+            edge_infos_signal = {k: flatten(v['signal2unitop']) for k, v in edge_infos_signal.items() if
+                                 v['signal2unitop']}
             if bool(edge_infos_signal):
                 for k, v in edge_infos_signal:
                     if edge_infos_signal[k, v][0]:
@@ -244,10 +248,14 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                 elif not first_traversal:  # NEIGHBOR NODE IN PREVIOUS TRAVERSAL
                     if sfiles_part[-1] == '[':
                         sfiles_part.pop()
+
+                    if bool(re.match(r'C-\d+\/[A-Z]+', current_node)):
+                        flowsheet.add_edges_from([(current_node, neighbour,
+                                                   {'tags': {'signal2unitop': ['other']}})])
                     # Only insert sfiles once. If there are multiple backloops to previous traversal,
                     # treat them as cycles.
                     # Insert a & sign where branch connects to node of previous traversal
-                    if node_insertion == '' and '(' + neighbour + ')' not in flatten(sfiles_part):
+                    elif node_insertion == '' and '(' + neighbour + ')' not in flatten(sfiles_part):
                         node_insertion = neighbour
                         pos = position_finder(nodes_position_setoffs, current_node, sfiles_part,
                                               nodes_position_setoffs_cycle, cycle=True)

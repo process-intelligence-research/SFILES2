@@ -77,3 +77,39 @@ if sfiles1 == sfiles2:
     print(sfiles1)
 else:
     print('Conversion back produced a different SFILES string. Input:', sfiles1, 'Output:', sfiles2)
+
+# A)
+graph = nx.DiGraph()
+graph.add_edges_from([('IO-1', 'C-1/FC'), ('C-1/FC', 'v-1', {'tags': {'signal2unitop': ['next']}}), ('v-1', 'IO-2')])
+
+flowsheet = Flowsheet()
+flowsheet.state = graph
+flowsheet.convert_to_sfiles()
+sfiles1 = flowsheet.sfiles
+flowsheet.create_from_sfiles(sfiles1, override_nx=True)
+flowsheet.convert_to_sfiles()
+sfiles2 = flowsheet.sfiles
+if sfiles1 == sfiles2:
+    print('Conversion back successful')
+    print('A: ', sfiles1)
+else:
+    print('Conversion back produced a different SFILES string. Input:', sfiles1, 'Output:', sfiles2)
+
+# B)
+graph = nx.DiGraph()
+graph.add_edges_from([('IO-1', 'C-1/F'), ('C-1/F', 'C-2/FFC'),
+                      ('C-2/FFC', 'v-1', {'tags': {'signal2unitop': ['next']}}), ('v-1', 'IO-2'), ('IO-3', 'C-3/F'),
+                      ('C-3/F', 'C-2/FFC'), ('C-3/F', 'IO-4')])
+
+flowsheet = Flowsheet()
+flowsheet.state = graph
+flowsheet.convert_to_sfiles()
+sfiles1 = flowsheet.sfiles
+flowsheet.create_from_sfiles(sfiles1, override_nx=True)
+flowsheet.convert_to_sfiles()
+sfiles2 = flowsheet.sfiles
+if sfiles1 == sfiles2:
+    print('Conversion back successful')
+    print('B: ', sfiles1)
+else:
+    print('Conversion back produced a different SFILES string. Input:', sfiles1, 'Output:', sfiles2)
