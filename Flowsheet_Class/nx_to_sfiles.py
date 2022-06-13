@@ -81,14 +81,6 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags):
                                                               nodes_position_setoffs_cycle, special_edges,
                                                               first_traversal=True, sfiles=[], node_insertion='')
 
-
-    # Search for signal to unitoperation connections and insert recycle numbering
-    # edge_infos = nx.get_edge_attributes(flowsheet, 'tags')
-    # edge_infos_signal = {k: flatten(v['signal2unitop']) for k, v in edge_infos.items() if 'signal2unitop' in v.keys()}
-    # TODO: edges noch zuvor nach rang sortieren, sodass recycle nummerierung immer gleich
-
-
-
     # Flatten nested list of sfile_part
     sfiles = flatten(sfiles)
     sfiles_string = ''.join(sfiles)
@@ -659,11 +651,8 @@ def calc_graph_invariant(flowsheet):
                     dfs_tr = nx.dfs_tree(sg, source=n)
                     dfs_trees.append(dfs_tr)
 
-                # we remove the numbering of the nodes (the numbering should not change the generalized SFILES!)
-                # TODO: This step is not robust. See Onenote. Maybe sort edges alphabetically.
-                #dfs_trees_generalized = {eq_ranked_nodes[i]: [el.split(sep='-')[0] for el in list(dfs_trees[i].nodes)]
-                #                         for i in range(0, len(eq_ranked_nodes))}
-
+                # Edges of DFS tree are sorted alphabetically. The numbering of the nodes is removed first (since it
+                # should not change the generalized SFILES).
                 sorted_edges = []
                 for k in range(0, len(eq_ranked_nodes)):
                     edges = sorted(list(dfs_trees[k].edges), key=lambda element: (element[0], element[1]))
