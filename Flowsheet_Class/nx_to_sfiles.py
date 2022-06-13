@@ -576,9 +576,12 @@ def calc_graph_invariant(flowsheet):
         ranks of graph nodes 
     
     """
+
+    # Remove signal nodes before ranking, otherwise interoperability with SFILES2.0 cannot be ensured.
     edge_infos = nx.get_edge_attributes(flowsheet, 'tags')
     edge_infos_signal = {k: v for k, v in edge_infos.items() if 'signal' in v.keys()}
-    edge_infos_signal = {k: flatten(v['signal']) for k, v in edge_infos_signal.items() if v['signal'] == ['next_signal']}
+    edge_infos_signal = {k: flatten(v['signal']) for k, v in edge_infos_signal.items() if v['signal'] == ['next_signal']
+                         or v['signal'] == ['not_next_unitop']}
     flowsheet_temp = flowsheet.copy()
 
     flowsheet_temp.remove_edges_from(edge_infos_signal.keys())
