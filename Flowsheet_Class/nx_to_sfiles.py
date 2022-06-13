@@ -139,7 +139,17 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
     nr_pre_visited: int
         counter variable
     """
+    # Remove all signal edges before sfiles generation through DFS?
+    # TODO: Check if this works
     edge_infos = nx.get_edge_attributes(flowsheet, 'tags')
+    edge_infos_signal = {k: v for k, v in edge_infos.items() if 'signal' in v.keys()}
+    edge_infos_signal = {k: flatten(v['signal']) for k, v in edge_infos_signal.items() if v['signal'] == ['next_signal']
+                         or v['signal'] == ['not_next_unitop']}
+    flowsheet_temp = flowsheet.copy()
+
+    flowsheet.remove_edges_from(edge_infos_signal.keys())
+
+    edge_infos = nx.get_edge_attributes(flowsheet_temp, 'tags')
     # edge_infos_ctrl = {k: flatten(v.values()) for k, v in edge_infos.items() if 'ctrl' in v.keys()}
     # edge_infos_signal = {k: flatten(v.values()) for k, v in edge_infos.items() if 'signal2unitop' in v.keys()}
     edge_infos_signal = {k: v for k, v in edge_infos.items() if 'signal' in v.keys()}
@@ -178,7 +188,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
         # After last traversal, search for signal connections.
         if neighbour == neighbours[-1]:
             nr_pre_visited_signal = 0
-            edge_infos = nx.get_edge_attributes(flowsheet, 'tags')
+            edge_infos = nx.get_edge_attributes(flowsheet_temp, 'tags')
             edge_infos_signal = {k: v for k, v in edge_infos.items() if 'signal' in v.keys()}
             edge_infos_signal = {k: flatten(v['signal']) for k, v in edge_infos_signal.items() if
                                  v['signal']}
