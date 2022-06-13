@@ -85,7 +85,7 @@ class Flowsheet:
                                      '\'sfiles_in\' or \'sfiles_list_in\' before using this method')
         else: 
             if self.sfiles:
-                print('Overwriting the current self.sfiles_list')
+                #print('Overwriting the current self.sfiles_list')
                 self.sfiles_list = self.SFILES_parser()
             else:
                 if sfiles_in:
@@ -715,3 +715,25 @@ class Flowsheet:
         nodes = list(filter(r.match, self.sfiles_list))
 
         return nodes
+
+    def convert_sfilesctrl_to_sfiles(self):
+        """
+        Function to read SFILES (parsed or unparsed) and creates Units (without child objects) and Streams.
+        Result is a flowsheet with Units with categories and specific categories.
+        Convert the SFILES string to a graph.
+
+        Parameters
+        ----------
+
+
+        Returns
+        ----------
+
+        """
+
+        pattern = re.compile(r'^^[<_]+\d+|\{[A-Z]+\}|\(C\)')
+        sfiles = [re.sub(pattern, '', i) for i in self.sfiles_list]
+        sfiles = ''.join(sfiles)
+        sfiles = re.sub(r'\[\]', '', sfiles)
+
+        return sfiles
