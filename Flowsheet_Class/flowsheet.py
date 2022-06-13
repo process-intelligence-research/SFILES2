@@ -731,7 +731,7 @@ class Flowsheet:
 
         """
 
-        pattern = re.compile(r'^^[<_]+\d+|\{[A-Z]+\}|\(C\)')
+        pattern = re.compile(r'<?_+\d+|\{[A-Z]+\}|\(C\)')
         sfiles = [re.sub(pattern, '', i) for i in self.sfiles_list]
         sfiles = ''.join(sfiles)
         sfiles = re.sub(r'\[\]', '', sfiles)

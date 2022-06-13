@@ -223,9 +223,11 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                     sfiles_part.append('[')
 
                 if neighbour not in visited:
-                    if (current_node, successors[0]) in edge_infos_signal:
-                        if edge_infos_signal[(current_node, successors[0])][0] == 'not_next_unitop' or \
-                                edge_infos_signal[(current_node, successors[0])][0] == 'next_signal':
+                    skip_dfs = False
+                    if (current_node, neighbour) in edge_infos_signal:
+                        #if edge_infos_signal[(current_node, successors[0])][0] == 'not_next_unitop' or \
+                        #        edge_infos_signal[(current_node, successors[0])][0] == 'next_signal':
+                        if edge_infos_signal[(current_node, neighbour)][0]:
                             skip_dfs = True
                     if not skip_dfs:
                         sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet, neighbour,
@@ -234,7 +236,9 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                                                                                   nodes_position_setoffs_cycle,
                                                                                   special_edges, first_traversal,
                                                                                   sfiles, node_insertion)
-                    if not neighbour == neighbours[-1]:
+                    if sfiles_part[-1] == '[':
+                        sfiles_part.pop()
+                    elif not neighbour == neighbours[-1]:
                         sfiles_part.append(']')  # Close bracket/branch
 
                 # If neighbor is already visited, that's a direct cycle. Thus, the branch brackets can be removed.
