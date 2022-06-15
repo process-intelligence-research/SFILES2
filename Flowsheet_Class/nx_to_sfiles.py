@@ -88,8 +88,9 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags):
     # Graph traversal (depth-first-search dfs)
     sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet_wo_signals, current_node, sfiles_part,
                                                               nr_pre_visited, ranks, nodes_position_setoffs,
-                                                              nodes_position_setoffs_cycle, special_edges, edge_information,
-                                                              first_traversal=True, sfiles=[], node_insertion='')
+                                                              nodes_position_setoffs_cycle, special_edges,
+                                                              edge_information, first_traversal=True, sfiles=[],
+                                                              node_insertion='')
 
     # Flatten nested list of sfile_part
     sfiles = flatten(sfiles)
@@ -122,6 +123,8 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
         flowsheet as networkx graph.
     current_node: str
         current node in depth first search
+    edge_information: dict
+        stores information about signal edges
     sfiles_part: list
         SFILES representation of a single traversal of the flowsheet
     nr_pre_visited: int
@@ -157,8 +160,9 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
             sfiles_part = []
             sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet, neighbour, sfiles_part,
                                                                       nr_pre_visited, ranks, nodes_position_setoffs,
-                                                                      nodes_position_setoffs_cycle, special_edges,edge_information,
-                                                                      first_traversal, sfiles, node_insertion='')
+                                                                      nodes_position_setoffs_cycle, special_edges,
+                                                                      edge_information, first_traversal, sfiles,
+                                                                      node_insertion='')
             # First traversal: sfiles_part is equal to sfiles
             # Further traversals: traversals, which are connected to the first traversal are inserted with '<&|...&|'
             # and independent subgraphs are inserted with 'n|'
@@ -203,8 +207,8 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                                                                               sfiles_part, nr_pre_visited,
                                                                               ranks, nodes_position_setoffs,
                                                                               nodes_position_setoffs_cycle,
-                                                                              special_edges, edge_information,first_traversal,
-                                                                              sfiles, node_insertion)
+                                                                              special_edges, edge_information,
+                                                                              first_traversal, sfiles, node_insertion)
                     if sfiles_part[-1] == '[':
                         sfiles_part.pop()
                     elif not neighbour == neighbours[-1]:
@@ -216,25 +220,19 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                         sfiles_part.pop()
 
                     nr_pre_visited, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited, sfiles_part,
-                                                                                      sfiles,
-                                                                                      special_edges,
+                                                                                      sfiles, special_edges,
                                                                                       nodes_position_setoffs,
                                                                                       nodes_position_setoffs_cycle,
                                                                                       neighbour, current_node,
-                                                                                      inverse_special_edge=False,
-                                                                                      pos1_in_sfiles=False)
+                                                                                      inverse_special_edge=False)
 
                 elif not first_traversal:  # NEIGHBOR NODE IN PREVIOUS TRAVERSAL
                     if sfiles_part[-1] == '[':
                         sfiles_part.pop()
-
-                    if bool(re.match(r'C-\d+\/[A-Z]+', current_node)):
-                        flowsheet.add_edges_from([(current_node, neighbour,
-                                                   {'tags': {'signal': ['not_next_unitop']}})])
                     # Only insert sfiles once. If there are multiple backloops to previous traversal,
                     # treat them as cycles.
                     # Insert a & sign where branch connects to node of previous traversal
-                    elif node_insertion == '' and '(' + neighbour + ')' not in flatten(sfiles_part):
+                    if node_insertion == '' and '(' + neighbour + ')' not in flatten(sfiles_part):
                         node_insertion = neighbour
                         pos = position_finder(nodes_position_setoffs, current_node, sfiles_part,
                                               nodes_position_setoffs_cycle, cycle=True)
@@ -242,27 +240,13 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                         # Additional info: edge is a new incoming branch edge in SFILES
                         special_edges[(current_node, neighbour)] = '&'
 
-                    elif '(' + neighbour + ')' in flatten(sfiles_part):
-                        nr_pre_visited, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited, sfiles_part,
-                                                                                          sfiles,
-                                                                                          special_edges,
-                                                                                          nodes_position_setoffs,
-                                                                                          nodes_position_setoffs_cycle,
-                                                                                          neighbour,
-                                                                                          current_node,
-                                                                                          inverse_special_edge=True,
-                                                                                          pos1_in_sfiles=False)
-
                     else:
                         nr_pre_visited, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited, sfiles_part,
-                                                                                          sfiles,
-                                                                                          special_edges,
+                                                                                          sfiles, special_edges,
                                                                                           nodes_position_setoffs,
                                                                                           nodes_position_setoffs_cycle,
-                                                                                          neighbour,
-                                                                                          current_node,
-                                                                                          inverse_special_edge=True,
-                                                                                          pos1_in_sfiles=True)
+                                                                                          neighbour, current_node,
+                                                                                          inverse_special_edge=True)
                     # No bracket/branch closing
 
         # Only one successor, no branching
@@ -271,24 +255,20 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
             visited.add(current_node)
             sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet, successors[0], sfiles_part,
                                                                       nr_pre_visited, ranks, nodes_position_setoffs,
-                                                                      nodes_position_setoffs_cycle, special_edges,edge_information,
-                                                                      first_traversal, sfiles, node_insertion)
+                                                                      nodes_position_setoffs_cycle, special_edges,
+                                                                      edge_information, first_traversal, sfiles,
+                                                                      node_insertion)
         # Dead end
         elif len(successors) == 0:
             visited.add(current_node)
             sfiles_part.append('(' + current_node + ')')
 
     # NODES OF PREVIOUS TRAVERSAL, this elif case is visited when there is no branching but node of previous traversal
-    elif not current_node == 'virtual' and not first_traversal:
+    elif not current_node == 'virtual':
 
         # Incoming branches are inserted at mixing point in SFILES surrounded by <&|...&|
         # Only insert sfiles once. If there are multiple backloops to previous traversal, treat them as cycles.
-        # TODO: Check if this is correct!
-        if bool(re.match(r'C-\d+\/[A-Z]+', current_node)):
-            for i in flowsheet.predecessors(current_node):
-                if bool(re.match(r'C-\d+\/[A-Z]+', i)):
-                    flowsheet.add_edges_from([(i, current_node, {'tags': {'signal': ['not_next_unitop']}})])
-        elif node_insertion == '' and '(' + current_node + ')' in flatten(sfiles):
+        if node_insertion == '' and '(' + current_node + ')' in flatten(sfiles) and not first_traversal:
             # Insert a & sign where branch connects to node of previous traversal
             node_insertion = current_node
             last_node = last_node_finder(sfiles_part)
@@ -300,35 +280,18 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
             special_edges[(last_node, current_node)] = '&'
 
         else:  # Incoming branches are referenced with a number, if there already is a node_insertion
-            if '(' + current_node + ')' in flatten(sfiles_part):
-                nr_pre_visited, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited, sfiles_part, sfiles,
-                                                                                  special_edges, nodes_position_setoffs,
-                                                                                  nodes_position_setoffs_cycle,
-                                                                                  current_node, node2='last_node',
-                                                                                  inverse_special_edge=False,
-                                                                                  pos1_in_sfiles=False)
-            else:
-                nr_pre_visited, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited, sfiles_part, sfiles,
-                                                                                  special_edges, nodes_position_setoffs,
-                                                                                  nodes_position_setoffs_cycle,
-                                                                                  current_node, node2='last_node',
-                                                                                  inverse_special_edge=False,
-                                                                                  pos1_in_sfiles=True)
-
-    elif not current_node == 'virtual':
-        nr_pre_visited, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited, sfiles_part, sfiles,
-                                                                          special_edges, nodes_position_setoffs,
-                                                                          nodes_position_setoffs_cycle,
-                                                                          current_node, node2='last_node',
-                                                                          inverse_special_edge=False,
-                                                                          pos1_in_sfiles=False)
+            nr_pre_visited, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited, sfiles_part, sfiles,
+                                                                              special_edges, nodes_position_setoffs,
+                                                                              nodes_position_setoffs_cycle,
+                                                                              current_node, node2='last_node',
+                                                                              inverse_special_edge=False)
 
     return sfiles_part, nr_pre_visited, node_insertion, sfiles
 
 
 def insert_cycle(nr_pre_visited, sfiles_part, sfiles, special_edges, nodes_position_setoffs,
-                 nodes_position_setoffs_cycle, node1, node2, inverse_special_edge, pos1_in_sfiles, signal=False):
-    if pos1_in_sfiles:
+                 nodes_position_setoffs_cycle, node1, node2, inverse_special_edge, signal=False):
+    if '(' + node1 + ')' not in flatten(sfiles_part):
         pos1 = position_finder(nodes_position_setoffs, node1, sfiles,
                                nodes_position_setoffs_cycle, cycle=False)
         nr_pre_visited += 1
@@ -848,13 +811,9 @@ def insert_signal_connections(edge_infos_signal, ranks, sfiles, nodes_position_s
         edge_infos_signal = dict(sorted(edge_infos_signal.items(), key=lambda pair: res_list_sorted.index(pair[0][0])))
 
     for k, v in edge_infos_signal:
-        nr_pre_visited_signal, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited_signal, sfiles,
-                                                                                         sfiles,
-                                                                                         special_edges,
-                                                                                         nodes_position_setoffs,
-                                                                                         nodes_position_setoffs_cycle,
-                                                                                         v, k,
-                                                                                         inverse_special_edge=False,
-                                                                                         pos1_in_sfiles=False,
-                                                                                         signal=True)
+        nr_pre_visited_signal, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited_signal, sfiles, sfiles,
+                                                                                 special_edges, nodes_position_setoffs,
+                                                                                 nodes_position_setoffs_cycle, v, k,
+                                                                                 inverse_special_edge=False,
+                                                                                 signal=True)
     return sfiles
