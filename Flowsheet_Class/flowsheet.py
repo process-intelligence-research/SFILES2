@@ -246,7 +246,7 @@ class Flowsheet:
                             edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': 'next_unitop'}))
                         elif bool(re.match(r'C-\d+/[A-Z]+', pre_op[1:-1])) and bool(re.match(r'C-\d+/[A-Z]+',
                                                                                              cycle_op[1: -1])):
-                            edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': 'next_signal'}))
+                            edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': 'not_next_unitop'}))
                         else:
                             edges.append((pre_op[1:-1], cycle_op[1:-1], {'tags': 'not_next_unitop'}))
                         tags = []

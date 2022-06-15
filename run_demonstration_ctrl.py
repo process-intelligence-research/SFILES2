@@ -17,7 +17,7 @@ testSFILESctrl(test_case, edges)
 
 # 3) Cascade control
 test_case = '3'
-edges = [('IO-1', 'tank-1'), ('tank-1', 'C-1/LC'), ('C-1/LC', 'C-2/FC', {'tags': {'signal': ['next_signal']}}),
+edges = [('IO-1', 'tank-1'), ('tank-1', 'C-1/LC'), ('C-1/LC', 'C-2/FC', {'tags': {'signal': ['not_next_unitop']}}),
          ('tank-1', 'C-2/FC'), ('C-2/FC', 'v-1', {'tags': {'signal': ['next_unitop']}}), ('v-1', 'IO-2')]
 testSFILESctrl(test_case, edges)
 
@@ -28,7 +28,7 @@ testSFILESctrl(test_case, edges)
 
 # B)
 test_case = 'B'
-edges = [('IO-1', 'C-1/F'), ('C-1/F', 'C-2/FFC', {'tags': {'signal': ['next_signal']}}),
+edges = [('IO-1', 'C-1/F'), ('C-1/F', 'C-2/FFC', {'tags': {'signal': ['not_next_unitop']}}),
          ('C-2/FFC', 'v-1', {'tags': {'signal': ['next_unitop']}}), ('v-1', 'IO-2'), ('IO-3', 'C-3/F'),
          ('C-3/F', 'C-2/FFC'), ('C-3/F', 'IO-4')]
 testSFILESctrl(test_case, edges)
@@ -36,7 +36,7 @@ testSFILESctrl(test_case, edges)
 # C)
 test_case = 'C'
 edges = [('IO-1', 'C-1/T'), ('C-1/T', 'IO-2'), ('IO-3', 'C-2/FQC'),
-         ('C-1/T', 'C-2/FQC', {'tags': {'signal': ['next_signal']}}),
+         ('C-1/T', 'C-2/FQC', {'tags': {'signal': ['not_next_unitop']}}),
          ('C-2/FQC', 'v-1', {'tags': {'signal': ['next_unitop']}}), ('v-1', 'IO-4')]
 testSFILESctrl(test_case, edges)
 
@@ -44,7 +44,7 @@ testSFILESctrl(test_case, edges)
 test_case = 'D'
 edges = [('IO-1', 'hex-1/1'), ('hex-1/1', 'C-1/TC'), ('C-1/TC', 'IO-2'), ('IO-3', 'C-2/FC'),
          ('C-2/FC', 'v-1', {'tags': {'signal': ['next_unitop']}}), ('v-1', 'hex-1/2'),
-         ('hex-1/2', 'IO-4'), ('C-1/TC', 'C-2/FC', {'tags': {'signal': ['next_signal']}})]
+         ('hex-1/2', 'IO-4'), ('C-1/TC', 'C-2/FC', {'tags': {'signal': ['not_next_unitop']}})]
 testSFILESctrl(test_case, edges)
 
 # E)
@@ -92,4 +92,19 @@ edges = [('IO-1', 'C-1/FC'), ('C-1/FC', 'v-1'), ('v-1', 'hex-1/1'), ('hex-1/1', 
          ('C-4/LC', 'v-6', {'tags': {'signal': ['not_next_unitop']}}), ('splt-2', 'hex-3/1'),
          ('hex-3/1', 'dist-1'), ('IO-7', 'C-7/FC'), ('C-7/FC', 'v-7', {'tags': {'signal': ['next_unitop']}}),
          ('v-7', 'hex-3/2'), ('hex-3/2', 'IO-8')]
+testSFILESctrl(test_case, edges)
+
+# Test case H
+test_case = 'H'
+edges = [('IO-1', 'pp-1'), ('pp-1', 'C-1/FC'), ('C-1/FC', 'v-1', {'tags': {'signal': ['next_unitop']}}),
+         ('v-1', 'hex-1'), ('hex-1', 'mix-1'), ('mix-1', 'r-1'),
+         ('r-1', 'mix-2', {'tags': {'col': ['tout']}}), ('mix-2', 'mix-1'), ('IO-2', 'mix-2'),
+         ('r-1', 'C-2/TC', {'tags': {'col': ['bout']}}), ('C-2/TC', 'dist-1'),
+         ('dist-1', 'pp-2', {'tags': {'col': ['bout']}}), ('pp-2', 'hex-2'), ('hex-2', 'splt-1'), ('splt-1', 'dist-1'),
+         ('splt-1', 'C-3/FC'), ('C-3/FC', 'v-2', {'tags': {'signal': ['next_unitop']}}), ('v-2', 'IO-3'),
+         ('dist-1', 'C-4/LC'), ('C-4/LC', 'C-3/FC', {'tags': {'signal': ['not_next_unitop']}}),
+         ('C-2/TC', 'C-1/FC', {'tags': {'signal': ['not_next_unitop']}}),
+         ('dist-1', 'IO-4', {'tags': {'col': ['tout']}}), ('IO-5', 'r-1'), ('IO-6', 'tank-1'), ('tank-1', 'pp-3'),
+         ('pp-3', 'C-5/FC'), ('C-5/FC', 'v-3', {'tags': {'signal': ['next_unitop']}}), ('v-3', 'hex-3'),
+         ('hex-3', 'mix-1')]
 testSFILESctrl(test_case, edges)

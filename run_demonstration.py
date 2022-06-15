@@ -15,6 +15,7 @@ new.create_from_sfiles(s, override_nx=True)
 new.convert_to_sfiles()
 s2=new.sfiles
 if s == s2:
+    print(s)
     print('Conversion back successful')
 else:
     print('Conversion back produced a different SFILES string. Input:', s, 'Output:', s2)
@@ -33,6 +34,7 @@ new.create_from_sfiles(s, override_nx=True)
 new.convert_to_sfiles()
 s2=new.sfiles
 if s == s2:
+    print(s)
     print('Conversion back successful')
 else:
     print('Conversion back produced a different SFILES string. Input:', s, 'Output:', s2)
@@ -48,6 +50,7 @@ flowsheet_2.visualize_flowsheet(table=False, pfd_path='plots/flowsheet3', plot_w
 flowsheet_2.sfiles=""
 flowsheet_2.convert_to_sfiles(version='v2')
 if sfiles_in==flowsheet_2.sfiles:
+    print(sfiles_in)
     print('Conversion back successful')
 else:
     print('Conversion back produced a different SFILES string. Input:', sfiles_in, 'Output:', flowsheet_2.sfiles)
@@ -62,6 +65,7 @@ flowsheet_2.visualize_flowsheet(table=False, pfd_path='plots/flowsheet3', plot_w
 flowsheet_2.sfiles=""
 flowsheet_2.convert_to_sfiles(version='v2')
 if sfiles_in==flowsheet_2.sfiles:
+    print(sfiles_in)
     print('Conversion back successful')
 else:
     print('Conversion back produced a different SFILES string. Input:', sfiles_in, 'Output:', flowsheet_2.sfiles)
@@ -104,6 +108,7 @@ flowsheet_2.visualize_flowsheet(table=False, pfd_path='plots/flowsheet3', plot_w
 flowsheet_2.sfiles = ""
 flowsheet_2.convert_to_sfiles(version='v2')
 if sfiles_in == flowsheet_2.sfiles:
+    print(sfiles_in)
     print('Conversion back successful')
 else:
     print('Conversion back produced a different SFILES string. Input:', sfiles_in, 'Output:', flowsheet_2.sfiles)
