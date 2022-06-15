@@ -35,50 +35,60 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags):
         String SFILES representation of flowsheet
     """
 
+    # Signal edges are removed from flowsheet graph as they are inserted later with numbers to SFILES.
+    # Remove signal nodes before ranking, otherwise interoperability with SFILES2.0 cannot be ensured.
+    # Edges of signals connected directly to the next unit operation shall not be removed!
+    flowsheet_wo_signals = flowsheet.copy()
+    edge_information = nx.get_edge_attributes(flowsheet, 'tags')
+    edge_information = {k: flatten(v['signal']) for k, v in edge_information.items() if 'signal' in v.keys()
+                        if v['signal']}
+    edges_to_remove = [k for k, v in edge_information.items() if v == ['not_next_unitop']]
+    flowsheet_wo_signals.remove_edges_from(edges_to_remove)
+
     # Calculation of graph invariant / node ranks
-    ranks = calc_graph_invariant(flowsheet)
+    ranks = calc_graph_invariant(flowsheet_wo_signals)
 
     # Find initial nodes of graph. Initial nodes are determined by an in-degree of zero.
-    init_nodes = [n for n, d in flowsheet.in_degree() if d == 0]
+    init_nodes = [n for n, d in flowsheet_wo_signals.in_degree() if d == 0]
     # Sort the possible initial nodes for traversal depending on their rank.
     init_nodes = sort_by_rank(init_nodes, ranks)
 
     # Add an additional virtual node, which is connected to every initial node. Thus, one graph traversal is sufficient
     # to access every node in the graph.
-    flowsheet.add_node('virtual')
+    flowsheet_wo_signals.add_node('virtual')
     virtual_edges = [('virtual', i) for i in init_nodes]
-    flowsheet.add_edges_from(virtual_edges)
+    flowsheet_wo_signals.add_edges_from(virtual_edges)
     current_node = 'virtual'
     ranks['virtual'] = 0
 
     # Nodes in cycle-processes are not determined since their in_degree is greater than zero.
     # Thus, as long as not every node of flowsheet is connected to the virtual node, the node with the lowest rank
     # (which is not a outlet node) is connected to the virtual node.
-    flowsheet_undirected = nx.to_undirected(flowsheet)
+    flowsheet_undirected = nx.to_undirected(flowsheet_wo_signals)
     connected_to_virtual = set(nx.node_connected_component(flowsheet_undirected, 'virtual'))
-    not_connected = set(flowsheet.nodes) - connected_to_virtual
+    not_connected = set(flowsheet_wo_signals.nodes) - connected_to_virtual
     while not_connected:
         rank_not_connected = sort_by_rank(not_connected, ranks)
         # Nodes with an out_degree of zero are removed since they are not suitable initial nodes.
-        rank_not_connected = [k for k in rank_not_connected if flowsheet.out_degree(k) > 0]
-        flowsheet.add_edges_from([('virtual', rank_not_connected[0])])
+        rank_not_connected = [k for k in rank_not_connected if flowsheet_wo_signals.out_degree(k) > 0]
+        flowsheet_wo_signals.add_edges_from([('virtual', rank_not_connected[0])])
         connected_to_virtual = set(nx.node_connected_component(flowsheet_undirected, 'virtual'))
-        not_connected = set(flowsheet.nodes) - connected_to_virtual
+        not_connected = set(flowsheet_wo_signals.nodes) - connected_to_virtual
 
     # Initialization of variables.
     visited = set()  # Set to keep track of visited nodes.
     sfiles_part = []  # empty sfile_part list of strings
     nr_pre_visited = 0  # counter for nodes that are visited more than once
     # Dictionary nodes_position_setoffs counts outgoing direct cycles and incoming streams per node ('#' and '<#')
-    nodes_position_setoffs = {n: 0 for n in flowsheet.nodes}
+    nodes_position_setoffs = {n: 0 for n in flowsheet_wo_signals.nodes}
     # Dictionary nodes_position_setoffs_cycle counts outgoing direct cycles ('#')
-    nodes_position_setoffs_cycle = {n: 0 for n in flowsheet.nodes}
+    nodes_position_setoffs_cycle = {n: 0 for n in flowsheet_wo_signals.nodes}
     special_edges = {}
 
     # Graph traversal (depth-first-search dfs)
-    sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet, current_node, sfiles_part,
+    sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet_wo_signals, current_node, sfiles_part,
                                                               nr_pre_visited, ranks, nodes_position_setoffs,
-                                                              nodes_position_setoffs_cycle, special_edges,
+                                                              nodes_position_setoffs_cycle, special_edges, edge_information,
                                                               first_traversal=True, sfiles=[], node_insertion='')
 
     # Flatten nested list of sfile_part
@@ -101,7 +111,7 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags):
 
 
 def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, nodes_position_setoffs,
-        nodes_position_setoffs_cycle, special_edges, first_traversal, sfiles, node_insertion):
+        nodes_position_setoffs_cycle, special_edges, edge_information, first_traversal, sfiles, node_insertion):
     """ 
     Depth first search implementation to traverse the directed graph from the virtual node
     Parameters
@@ -138,17 +148,6 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
         counter variable
     """
 
-    # Remove all signal edges (except signals which are connected directly to the next unit operation)
-    # before sfiles generation through DFS
-    edge_infos = nx.get_edge_attributes(flowsheet, 'tags')
-    edge_infos_signal1 = {k: v for k, v in edge_infos.items() if 'signal' in v.keys()}
-    edge_infos_signal = {k: flatten(v['signal']) for k, v in edge_infos_signal1.items()
-                         if v['signal'] == ['not_next_unitop']}
-    # This maybe redundant
-    edge_infos_signal1 = {k: flatten(v['signal']) for k, v in edge_infos_signal1.items() if v['signal']}
-
-    flowsheet.remove_edges_from(edge_infos_signal.keys())
-
     if current_node == 'virtual':
         visited.add(current_node)
         # Branching decision requires ranks of nodes:
@@ -158,7 +157,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
             sfiles_part = []
             sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet, neighbour, sfiles_part,
                                                                       nr_pre_visited, ranks, nodes_position_setoffs,
-                                                                      nodes_position_setoffs_cycle, special_edges,
+                                                                      nodes_position_setoffs_cycle, special_edges,edge_information,
                                                                       first_traversal, sfiles, node_insertion='')
             # First traversal: sfiles_part is equal to sfiles
             # Further traversals: traversals, which are connected to the first traversal are inserted with '<&|...&|'
@@ -180,7 +179,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
 
         # After last traversal, search for signal connections.
         if neighbour == neighbours[-1]:
-            sfiles = insert_signal_connections(edge_infos_signal1, ranks, sfiles, nodes_position_setoffs_cycle,
+            sfiles = insert_signal_connections(edge_information, ranks, sfiles, nodes_position_setoffs_cycle,
                                                nodes_position_setoffs, special_edges)
 
     # DFS is performed if current_node is not already visited and not the artificially introduced virtual node.
@@ -204,7 +203,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                                                                               sfiles_part, nr_pre_visited,
                                                                               ranks, nodes_position_setoffs,
                                                                               nodes_position_setoffs_cycle,
-                                                                              special_edges, first_traversal,
+                                                                              special_edges, edge_information,first_traversal,
                                                                               sfiles, node_insertion)
                     if sfiles_part[-1] == '[':
                         sfiles_part.pop()
@@ -272,7 +271,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
             visited.add(current_node)
             sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet, successors[0], sfiles_part,
                                                                       nr_pre_visited, ranks, nodes_position_setoffs,
-                                                                      nodes_position_setoffs_cycle, special_edges,
+                                                                      nodes_position_setoffs_cycle, special_edges,edge_information,
                                                                       first_traversal, sfiles, node_insertion)
         # Dead end
         elif len(successors) == 0:
@@ -540,16 +539,8 @@ def calc_graph_invariant(flowsheet):
     
     """
 
-    # Remove signal nodes before ranking, otherwise interoperability with SFILES2.0 cannot be ensured.
-    edge_infos = nx.get_edge_attributes(flowsheet, 'tags')
-    edge_infos_signal = {k: v for k, v in edge_infos.items() if 'signal' in v.keys()}
-    edge_infos_signal = {k: flatten(v['signal']) for k, v in edge_infos_signal.items() if v['signal'] == ['not_next_unitop']}
-    flowsheet_temp = flowsheet.copy()
-
-    flowsheet_temp.remove_edges_from(edge_infos_signal.keys())
-
     # First generate subgraphs (different mass trains in flowsheet)
-    _sgs = [flowsheet_temp.subgraph(c).copy() for c in nx.weakly_connected_components(flowsheet_temp)]
+    _sgs = [flowsheet.subgraph(c).copy() for c in nx.weakly_connected_components(flowsheet)]
     # Sort subgraphs, such that larger subgraphs are used first
     _sgs.sort(key=lambda x: -len(list(x.nodes)))
     rank_offset = 0
@@ -854,13 +845,10 @@ def insert_signal_connections(edge_infos_signal, ranks, sfiles, nodes_position_s
     res_list = [x[0] for x in edge_infos_signal.keys()]
     if res_list:
         res_list_sorted = sort_by_rank(res_list, ranks)
-        edge_infos_signal = dict(
-            sorted(edge_infos_signal.items(), key=lambda pair: res_list_sorted.index(pair[0][0])))
+        edge_infos_signal = dict(sorted(edge_infos_signal.items(), key=lambda pair: res_list_sorted.index(pair[0][0])))
 
-    if bool(edge_infos_signal):
-        for k, v in edge_infos_signal:
-            if edge_infos_signal[k, v][0]:
-                nr_pre_visited_signal, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited_signal, sfiles,
+    for k, v in edge_infos_signal:
+        nr_pre_visited_signal, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited_signal, sfiles,
                                                                                          sfiles,
                                                                                          special_edges,
                                                                                          nodes_position_setoffs,
