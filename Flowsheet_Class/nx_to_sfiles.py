@@ -40,9 +40,9 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags):
     # Edges of signals connected directly to the next unit operation shall not be removed!
     flowsheet_wo_signals = flowsheet.copy()
     edge_information = nx.get_edge_attributes(flowsheet, 'tags')
-    edge_information = {k: flatten(v['signal']) for k, v in edge_information.items() if 'signal' in v.keys()
-                        if v['signal']}
-    edges_to_remove = [k for k, v in edge_information.items() if v == ['not_next_unitop']]
+    edge_information_signal = {k: flatten(v['signal']) for k, v in edge_information.items() if 'signal' in v.keys()
+                               if v['signal']}
+    edges_to_remove = [k for k, v in edge_information_signal.items() if v == ['not_next_unitop']]
     flowsheet_wo_signals.remove_edges_from(edges_to_remove)
 
     # Calculation of graph invariant / node ranks
@@ -89,16 +89,15 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags):
     sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet_wo_signals, current_node, sfiles_part,
                                                               nr_pre_visited, ranks, nodes_position_setoffs,
                                                               nodes_position_setoffs_cycle, special_edges,
-                                                              edge_information, first_traversal=True, sfiles=[],
+                                                              edge_information_signal, first_traversal=True, sfiles=[],
                                                               node_insertion='')
 
     # Flatten nested list of sfile_part
     sfiles = flatten(sfiles)
-    sfiles_string = ''.join(sfiles)
 
-    # The following section is for SFILES_2.0
+    # SFILES Version 2.0:
     if version == 'v2':
-        sfiles_v2 = SFILES_v2(flowsheet, sfiles, special_edges, remove_hex_tags)
+        sfiles_v2 = SFILES_v2(sfiles, special_edges, edge_information, remove_hex_tags)
         # Generalization of SFILES (remove node numbering) as last step
         sfiles_v2_gen = generalize_SFILES(sfiles_v2)
         sfiles_string_v2_gen = ''.join(sfiles_v2_gen)
@@ -113,6 +112,7 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags):
 
 def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, nodes_position_setoffs,
         nodes_position_setoffs_cycle, special_edges, edge_information, first_traversal, sfiles, node_insertion):
+
     """ 
     Depth first search implementation to traverse the directed graph from the virtual node
     Parameters
@@ -151,6 +151,8 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
         counter variable
     """
 
+    if sfiles is None:
+        sfiles = []
     if current_node == 'virtual':
         visited.add(current_node)
         # Branching decision requires ranks of nodes:
@@ -181,10 +183,10 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                     sfiles.append('n|')
                     sfiles.extend(sfiles_part)
 
-        # After last traversal, search for signal connections.
-        if neighbour == neighbours[-1]:
-            sfiles = insert_signal_connections(edge_information, ranks, sfiles, nodes_position_setoffs_cycle,
-                                               nodes_position_setoffs, special_edges)
+            # After last traversal, search for signal connections.
+            if neighbour == neighbours[-1]:
+                sfiles = insert_signal_connections(edge_information, ranks, sfiles, nodes_position_setoffs_cycle,
+                                                   nodes_position_setoffs, special_edges)
 
     # DFS is performed if current_node is not already visited and not the artificially introduced virtual node.
     if current_node not in visited and not current_node == 'virtual':
@@ -209,9 +211,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                                                                               nodes_position_setoffs_cycle,
                                                                               special_edges, edge_information,
                                                                               first_traversal, sfiles, node_insertion)
-                    if sfiles_part[-1] == '[':
-                        sfiles_part.pop()
-                    elif not neighbour == neighbours[-1]:
+                    if not neighbour == neighbours[-1]:
                         sfiles_part.append(']')  # Close bracket/branch
 
                 # If neighbor is already visited, that's a direct cycle. Thus, the branch brackets can be removed.
@@ -322,7 +322,7 @@ def insert_cycle(nr_pre_visited, sfiles_part, sfiles, special_edges, nodes_posit
     return nr_pre_visited, special_edges, sfiles_part, sfiles
 
 
-def SFILES_v2(flowsheet, sfiles, special_edges, remove_hex_tags=False):
+def SFILES_v2(sfiles, special_edges, edge_information, remove_hex_tags=False):
     """
     Method to construct the SFILES 2.0:
     Additional information in edge attributes regarding connectivity (Top or bottom in distillation, absorption, or
@@ -342,14 +342,13 @@ def SFILES_v2(flowsheet, sfiles, special_edges, remove_hex_tags=False):
     
     """
     sfiles_v2 = sfiles.copy()
-    edge_infos = nx.get_edge_attributes(flowsheet, "tags")
     if remove_hex_tags:  # only save the column related tags
-        edge_infos = {k: {'col': v['col']} for k, v in edge_infos.items() if 'col' in v.keys()}
-    edge_infos = {k: flatten(v.values()) for k, v in edge_infos.items()}  # merge he and col tags
-    edge_infos = {k: v for k, v in edge_infos.items() if v}  # filter out empty tags lists, and
-    if edge_infos:  # only if there are additional sfiles_info attributes
+        edge_information = {k: {'col': v['col']} for k, v in edge_information.items() if 'col' in v.keys()}
+    edge_information = {k: flatten(v.values()) for k, v in edge_information.items()}  # merge he and col tags
+    edge_information = {k: v for k, v in edge_information.items() if v}  # filter out empty tags lists, and
+    if edge_information:  # only if there are additional sfiles_info attributes
         # first assign edge attributes to nodes
-        for e, at in edge_infos.items():
+        for e, at in edge_information.items():
             # e: tuple (in_node name, out_node name); at: attribute
             if type(at) == str:
                 # print('Info: Changed the tag of edge %s to type list with one element.'%str(e))
@@ -528,8 +527,7 @@ def calc_graph_invariant(flowsheet):
         # Morgan algorithm is stopped if the number of unique values is stable and maximum number of iteration is
         # reached. Maximum number of iteration is necessary since the number of unique values may not be stable for
         # e.g. cycle processes.
-        while counter < 5 and maximum_iteration < 100:
-            maximum_iteration += 1
+        while counter < 5:
             morgan_iter = morgan_iter @ adjacency_matrix
             unique_values = np.unique(morgan_iter).size
             if unique_values > unique_values_temp:
@@ -537,12 +535,6 @@ def calc_graph_invariant(flowsheet):
                 morgan_iter_dict = dict(zip(node_labels, morgan_iter))
             else:
                 counter += 1
-
-            #if unique_values == unique_values_temp:
-            #    counter += 1
-            #else:
-            #    unique_values_temp = unique_values
-            #    morgan_iter_dict = dict(zip(node_labels, morgan_iter))
 
         # Assign ranks based on the connectivity values
         r = {key: rank for rank, key in enumerate(sorted(set(morgan_iter_dict.values())), 1)}
