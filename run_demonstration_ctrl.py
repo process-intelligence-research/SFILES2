@@ -42,7 +42,8 @@ class TestSFILESctrl(unittest.TestCase):
         test_case = 'B'
         edges = [('IO-1', 'C-1/F'), ('C-1/F', 'C-2/FFC', {'tags': {'signal': ['not_next_unitop']}}),
                  ('C-2/FFC', 'v-1', {'tags': {'signal': ['next_unitop']}}), ('v-1', 'IO-2'), ('IO-3', 'C-3/F'),
-                 ('C-3/F', 'C-2/FFC'), ('C-3/F', 'IO-4')]
+                 ('C-3/F', 'C-2/FFC', {'tags': {'signal': ['next_unitop']}}),
+                 ('C-3/F', 'IO-4')]
         self.SFILESctrl(test_case, edges)
 
     def test_case_C(self):

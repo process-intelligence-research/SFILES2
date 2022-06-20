@@ -85,6 +85,8 @@ class Generate_flowsheet:
                     else:
                         if _next_op_cat == 'TemperatureChange' and self.include_controls:
                             _current_node = self.temperature_ctrl_pattern(_current_node)
+                        elif _next_op_cat == 'PressureChange' and self.include_controls:
+                            _current_node = self.pressure_ctrl_pattern(_current_node, _next_op)
                         else:
                             self.operation_counter[_next_op] += 1
                             self.nodes.append(_next_op_name)
@@ -785,10 +787,8 @@ class Generate_flowsheet:
             self.edges[_edge_pos] = ((new_node_name, _out_node), _connection_info)
 
     def mixing_ctrl_pattern(self, node1, node2, mixing):
-
-        #for k in range(len(self.edges)):
-        #    if 'MixingUnit' in self.edges[0][0][1]:
-
+        # TODO: It has to be checked if raw material stream includes already FC through other unitop.
+        #  Material stream cannot be controlled by two or more FC!
         mixing_pattern = random.choices(['Pattern_1', 'Pattern_2'], [0.7, 0.3])[0]
 
         if mixing_pattern == 'Pattern_1':
@@ -827,9 +827,9 @@ class Generate_flowsheet:
 
     def temperature_ctrl_pattern(self, node):
 
-        mixing_pattern = random.choices(['Pattern_1', 'Pattern_2'], [0.2, 0.8])[0]
+        temperature_ctrl_pattern = random.choices(['Pattern_1', 'Pattern_2'], [0.2, 0.8])[0]
 
-        if mixing_pattern == 'Pattern_1':
+        if temperature_ctrl_pattern == 'Pattern_1':
             ctrl = 'Control' + '-' + str(self.operation_counter['Control']) + '/TC'
             self.operation_counter['Control'] += 1
             heatexchanger = 'HeatExchanger' + '-' + str(self.operation_counter['HeatExchanger'])
@@ -839,7 +839,7 @@ class Generate_flowsheet:
                                ((ctrl, heatexchanger), {'in_connect': ['not_next_unitop'], 'out_connect': []}),
                                ((heatexchanger, ctrl), {'in_connect': [], 'out_connect': []})])
             return ctrl
-        elif mixing_pattern == 'Pattern_2':
+        elif temperature_ctrl_pattern == 'Pattern_2':
             ctrl = 'Control' + '-' + str(self.operation_counter['Control']) + '/TC'
             self.operation_counter['Control'] += 1
             valve = 'Valve' + '-' + str(self.operation_counter['Valve'])
@@ -858,3 +858,85 @@ class Generate_flowsheet:
                                ((valve, utility_out), {'in_connect': [], 'out_connect': []}),
                                ((ctrl, valve), {'in_connect': ['not_next_unitop'], 'out_connect': []})])
             return ctrl
+
+    def pressure_ctrl_pattern(self, node, _next_op):
+
+        if _next_op == 'Pump':
+            pressure_ctrl_patter = random.choices(['Pattern_1', 'Pattern_2', 'Pattern_3'], [0.2, 0.5, 0.3])[0]
+
+            if pressure_ctrl_patter == 'Pattern_1':
+                mixing = 'MixingUnit' + '-' + str(self.operation_counter['MixingUnit'])
+                self.operation_counter['MixingUnit'] += 1
+                pump = 'Pump' + '-' + str(self.operation_counter['Pump'])
+                self.operation_counter['Pump'] += 1
+                splt = 'SplittingUnit' + '-' + str(self.operation_counter['SplittingUnit'])
+                self.operation_counter['SplittingUnit'] += 1
+                ctrl_1 = 'Control' + '-' + str(self.operation_counter['Control']) + '/PI'
+                self.operation_counter['Control'] += 1
+                ctrl_2 = 'Control' + '-' + str(self.operation_counter['Control']) + '/FC'
+                self.operation_counter['Control'] += 1
+                ctrl_3 = 'Control' + '-' + str(self.operation_counter['Control']) + '/M'
+                self.operation_counter['Control'] += 1
+                valve = 'Valve' + '-' + str(self.operation_counter['Valve'])
+                self.operation_counter['Valve'] += 1
+
+                self.nodes.extend([mixing, pump, splt, ctrl_1, ctrl_2, ctrl_3, valve])
+                self.edges.extend([((node, mixing), {'in_connect': [], 'out_connect': []}),
+                                   ((mixing, pump), {'in_connect': [], 'out_connect': []}),
+                                   ((pump, splt), {'in_connect': [], 'out_connect': []}),
+                                   ((splt, ctrl_1), {'in_connect': [], 'out_connect': []}),
+                                   ((ctrl_1, ctrl_2), {'in_connect': [], 'out_connect': []}),
+                                   ((ctrl_2, valve), {'in_connect': ['not_next_unitop'], 'out_connect': []}),
+                                   ((splt, valve), {'in_connect': [], 'out_connect': []}),
+                                   ((valve, mixing), {'in_connect': [], 'out_connect': []}),
+                                   ((pump, ctrl_3), {'in_connect': [], 'out_connect': []})])
+                return ctrl_2
+
+            elif pressure_ctrl_patter == 'Pattern_2':
+                pump = 'Pump' + '-' + str(self.operation_counter['Pump'])
+                self.operation_counter['Pump'] += 1
+                ctrl_1 = 'Control' + '-' + str(self.operation_counter['Control']) + '/PI'
+                self.operation_counter['Control'] += 1
+                ctrl_2 = 'Control' + '-' + str(self.operation_counter['Control']) + '/FC'
+                self.operation_counter['Control'] += 1
+                ctrl_3 = 'Control' + '-' + str(self.operation_counter['Control']) + '/M'
+                self.operation_counter['Control'] += 1
+                valve = 'Valve' + '-' + str(self.operation_counter['Valve'])
+                self.operation_counter['Valve'] += 1
+
+                self.nodes.extend([pump, ctrl_1, ctrl_2, ctrl_3, valve])
+                self.edges.extend([((node, pump), {'in_connect': [], 'out_connect': []}),
+                                   ((pump, ctrl_1), {'in_connect': [], 'out_connect': []}),
+                                   ((ctrl_1, ctrl_2), {'in_connect': [], 'out_connect': []}),
+                                   ((ctrl_2, valve), {'in_connect': ['next_unitop'], 'out_connect': []}),
+                                   ((pump, ctrl_3), {'in_connect': [], 'out_connect': []})])
+                return ctrl_2
+
+            elif pressure_ctrl_patter == 'Pattern_3':
+                pump = 'Pump' + '-' + str(self.operation_counter['Pump'])
+                self.operation_counter['Pump'] += 1
+                ctrl_1 = 'Control' + '-' + str(self.operation_counter['Control']) + '/PI'
+                self.operation_counter['Control'] += 1
+                ctrl_2 = 'Control' + '-' + str(self.operation_counter['Control']) + '/FC'
+                self.operation_counter['Control'] += 1
+                ctrl_3 = 'Control' + '-' + str(self.operation_counter['Control']) + '/M'
+                self.operation_counter['Control'] += 1
+
+                self.nodes.extend([pump, ctrl_1, ctrl_2, ctrl_3])
+                self.edges.extend([((node, pump), {'in_connect': [], 'out_connect': []}),
+                                   ((pump, ctrl_1), {'in_connect': [], 'out_connect': []}),
+                                   ((ctrl_1, ctrl_2), {'in_connect': [], 'out_connect': []}),
+                                   ((pump, ctrl_3), {'in_connect': [], 'out_connect': []}),
+                                   ((ctrl_2, ctrl_3), {'in_connect': ['not_next_unitop'], 'out_connect': []})])
+                return ctrl_2
+
+        else:
+            pressure_ctrl_patter = random.choices(['Pattern_1', 'Pattern_2', 'Pattern_3'], [1, 0, 0])[0]
+
+            if pressure_ctrl_patter == 'Pattern_1':
+                compressor = _next_op + '-' + str(self.operation_counter[_next_op])
+                self.operation_counter[_next_op] += 1
+                self.nodes.extend([compressor])
+                self.edges.extend([((node, compressor), {'in_connect': [], 'out_connect': []})])
+                return compressor
+

@@ -28,7 +28,7 @@ class FlowsheetTests(unittest.TestCase):
         all_sfiles3 = []
         all_sfiles4 = []
         for key, ob in flowsheets.items():
-            print(key)
+            #print(key)
             ob.create_random_flowsheet()
             #ob.convert_to_sfiles(version='v2')
             sfiles_1=ob.sfiles
