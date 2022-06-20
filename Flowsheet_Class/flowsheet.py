@@ -542,12 +542,30 @@ class Flowsheet:
             heatexchanger = 'HeatExchanger'
         else:
             heatexchanger = 'hex'
+
+        # TODO: signal edges have to be removed otherwise out_degree of HX may not match in_degree
+        flowsheet_wo_signals = self.state.copy()
+        edge_information = nx.get_edge_attributes(self.state, 'tags')
+        edge_information_signal = {k: self.flatten(v['signal']) for k, v in edge_information.items() if 'signal' in v.keys()
+                                   if v['signal']}
+        edges_to_remove = [k for k, v in edge_information_signal.items() if v == ['not_next_unitop']]
+        flowsheet_wo_signals.remove_edges_from(edges_to_remove)
+
         for n in list(self.state.nodes):
-            if heatexchanger in n and self.state.in_degree(n) > 1:  # Heat exchangers with more than 1 streams
-                assert (self.state.out_degree(n) == self.state.in_degree(n))
+            if heatexchanger in n and flowsheet_wo_signals.in_degree(n) > 1:  # Heat exchangers with more than 1 streams
+                assert (flowsheet_wo_signals.out_degree(n) == flowsheet_wo_signals.in_degree(n))
+                #edge_infos = nx.get_edge_attributes(flowsheet_wo_signals, "tags")
+            #    edges_in = list(flowsheet_wo_signals.in_edges(n))
+            #    edges_out = list(flowsheet_wo_signals.out_edges(n))
+            #if heatexchanger in n and self.state.in_degree(n) > 1:  # Heat exchangers with more than 1 streams
+                #assert (self.state.out_degree(n) == self.state.in_degree(n))
                 edge_infos = nx.get_edge_attributes(self.state, "tags")
                 edges_in = list(self.state.in_edges(n))
                 edges_out = list(self.state.out_edges(n))
+                # TODO: New assert. It can happen that a ctrl is connected to a HX. Thus, in_degree does not match out_degree!
+                #edges_in = [v for k, v in enumerate(edges_in) if 'Control' not in edges_in[k][0]]
+                #edges_out = [v for k, v in enumerate(edges_out) if 'Control' not in edges_out[k][0]]
+                #assert (len(edges_in) == len(edges_out))
                 # Edges with infos only for that heat exchanger
                 edge_infos_he_in = {k: v for k, v in edge_infos.items() if k in edges_in}
                 # Edges with infos only for that heat exchanger
