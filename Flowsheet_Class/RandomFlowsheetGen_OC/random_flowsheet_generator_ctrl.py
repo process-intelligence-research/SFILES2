@@ -25,7 +25,7 @@ class Generate_flowsheet:
         _detailed_ops = self.flatten(list(unit_ops.values()))
         self.operation_counter = {s: 1 for s in _detailed_ops}
         self.HI_hex_stream_counter = {}
-        self.include_controls = True
+        self.include_controls = False
 
         # 1. Initializing step determine the number of raw materials
         self.raw_materials()
@@ -59,14 +59,10 @@ class Generate_flowsheet:
                                               unit_ops_probabilities[_next_op_cat][1])[0]
                     _next_op_name = _next_op + '-' + str(self.operation_counter[_next_op])
 
-                    if _next_op_name not in self.nodes:
-                        self.nodes.append(_next_op_name)
-
-
-
                     if _next_op_cat == 'Mixing':
                         # Mixer of material 1 and 2
                         if n == 1:
+                            self.nodes.append(_next_op_name)
                             node1 = self.nodes[-2]
                             mixing = self.nodes[-1]
                             if not self.include_controls:
@@ -87,9 +83,13 @@ class Generate_flowsheet:
                         break
 
                     else:
-                        self.operation_counter[_next_op] += 1
-                        self.edges.append(((_current_node, _next_op_name), {'in_connect': [], 'out_connect': []}))
-                        _current_node = _next_op_name
+                        if _next_op_cat == 'TemperatureChange' and self.include_controls:
+                            _current_node = self.temperature_ctrl_pattern(_current_node)
+                        else:
+                            self.operation_counter[_next_op] += 1
+                            self.nodes.append(_next_op_name)
+                            self.edges.append(((_current_node, _next_op_name), {'in_connect': [], 'out_connect': []}))
+                            _current_node = _next_op_name
 
 
 
@@ -789,7 +789,7 @@ class Generate_flowsheet:
         #for k in range(len(self.edges)):
         #    if 'MixingUnit' in self.edges[0][0][1]:
 
-        mixing_pattern = random.choices(['Pattern_1', 'Pattern_2'], [0, 1])[0]
+        mixing_pattern = random.choices(['Pattern_1', 'Pattern_2'], [0.7, 0.3])[0]
 
         if mixing_pattern == 'Pattern_1':
             ctrl_1 = 'Control' + '-' + str(self.operation_counter['Control']) + '/FC'
@@ -824,3 +824,37 @@ class Generate_flowsheet:
                                ((ctrl_2, valve_1), {'in_connect': ['next_unitop'], 'out_connect': []}),
                                ((valve_1, mixing), {'in_connect': [], 'out_connect': []}),
                                ((ctrl_1, ctrl_2), {'in_connect': ['not_next_unitop'], 'out_connect': []})])
+
+    def temperature_ctrl_pattern(self, node):
+
+        mixing_pattern = random.choices(['Pattern_1', 'Pattern_2'], [0.2, 0.8])[0]
+
+        if mixing_pattern == 'Pattern_1':
+            ctrl = 'Control' + '-' + str(self.operation_counter['Control']) + '/TC'
+            self.operation_counter['Control'] += 1
+            heatexchanger = 'HeatExchanger' + '-' + str(self.operation_counter['HeatExchanger'])
+            self.operation_counter['HeatExchanger'] += 1
+            self.nodes.extend([heatexchanger, ctrl])
+            self.edges.extend([((node, heatexchanger), {'in_connect': [], 'out_connect': []}),
+                               ((ctrl, heatexchanger), {'in_connect': ['not_next_unitop'], 'out_connect': []}),
+                               ((heatexchanger, ctrl), {'in_connect': [], 'out_connect': []})])
+            return ctrl
+        elif mixing_pattern == 'Pattern_2':
+            ctrl = 'Control' + '-' + str(self.operation_counter['Control']) + '/TC'
+            self.operation_counter['Control'] += 1
+            valve = 'Valve' + '-' + str(self.operation_counter['Valve'])
+            self.operation_counter['Valve'] += 1
+            heatexchanger = 'HeatExchanger' + '-' + str(self.operation_counter['HeatExchanger'])
+            self.operation_counter['HeatExchanger'] += 1
+            utility_in = 'RawMaterial-%d' % self.operation_counter['RawMaterial']
+            self.operation_counter['RawMaterial'] += 1
+            utility_out = 'OutputProduct-%d' % self.operation_counter['OutputProduct']
+            self.operation_counter['OutputProduct'] += 1
+            self.nodes.extend([ctrl, heatexchanger, utility_in, utility_out])
+            self.edges.extend([((node, heatexchanger), {'in_connect': ['1_in'], 'out_connect': []}),
+                               ((heatexchanger, ctrl), {'in_connect': [], 'out_connect': ['1_out']}),
+                               ((utility_in, heatexchanger), {'in_connect': ['2_in'], 'out_connect': []}),
+                               ((heatexchanger, valve), {'in_connect': [], 'out_connect': ['2_out']}),
+                               ((valve, utility_out), {'in_connect': [], 'out_connect': []}),
+                               ((ctrl, valve), {'in_connect': ['not_next_unitop'], 'out_connect': []})])
+            return ctrl
