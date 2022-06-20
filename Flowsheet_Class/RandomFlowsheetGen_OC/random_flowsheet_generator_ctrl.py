@@ -41,7 +41,9 @@ class Generate_flowsheet:
             - mix the streams with mixers 'mix-#'
         """
         
-        self.number_raw = random.choice([1, 2, 3])  # chose the first node randomly, each node with equal probability
+        #self.number_raw = random.choice([1, 2, 3])  # chose the first node randomly, each node with equal probability
+        # TODO: for now only two raw material streams are allowed!
+        self.number_raw = random.choice([1, 2])  # chose the first node randomly, each node with equal probability
         for n in range(1, self.number_raw+1):
 
             _current_node = 'RawMaterial-%d' % self.operation_counter['RawMaterial']
@@ -122,29 +124,6 @@ class Generate_flowsheet:
                         self.operation_counter[_next_op] += 1
 
         self.last_node = _current_node  # last node (MixingUnit-1, MixingUnit-2 or RawMaterial-1)
-
-    def mixing_ctrl_pattern(self, node1, node2, mixing):
-
-        #for k in range(len(self.edges)):
-        #    if 'MixingUnit' in self.edges[0][0][1]:
-
-        # Pattern 1
-        ctrl_1 = 'Control' + '-' + str(self.operation_counter['Control']) + '/FC'
-        self.operation_counter['Control'] += 1
-        ctrl_2 = 'Control' + '-' + str(self.operation_counter['Control']) + '/FC'
-        self.operation_counter['Control'] += 1
-        valve_1 = 'Valve' + '-' + str(self.operation_counter['Valve'])
-        self.operation_counter['Valve'] += 1
-        valve_2 = 'Valve' + '-' + str(self.operation_counter['Valve'])
-        self.operation_counter['Valve'] += 1
-
-        self.nodes.extend([ctrl_1, ctrl_2, valve_1, valve_2])
-        self.edges.extend([((node1, ctrl_1), {'in_connect': [], 'out_connect': []}),
-                           ((ctrl_1, valve_1), {'in_connect': ['next_unitop'], 'out_connect': []}),
-                           ((valve_1, mixing), {'in_connect': [], 'out_connect': []}),
-                           ((node2, ctrl_2), {'in_connect': [], 'out_connect': []}),
-                           ((ctrl_2, valve_2), {'in_connect': ['next_unitop'], 'out_connect': []}),
-                           ((valve_2, mixing), {'in_connect': [], 'out_connect': []})])
 
 
     def next_operation(self, connect_info=[], first_operation=False):
@@ -804,3 +783,44 @@ class Generate_flowsheet:
             _out_node = _outgoing[1][0][1] 
             assert(_in_node == old_node_name)
             self.edges[_edge_pos] = ((new_node_name, _out_node), _connection_info)
+
+    def mixing_ctrl_pattern(self, node1, node2, mixing):
+
+        #for k in range(len(self.edges)):
+        #    if 'MixingUnit' in self.edges[0][0][1]:
+
+        mixing_pattern = random.choices(['Pattern_1', 'Pattern_2'], [0, 1])[0]
+
+        if mixing_pattern == 'Pattern_1':
+            ctrl_1 = 'Control' + '-' + str(self.operation_counter['Control']) + '/FC'
+            self.operation_counter['Control'] += 1
+            ctrl_2 = 'Control' + '-' + str(self.operation_counter['Control']) + '/FC'
+            self.operation_counter['Control'] += 1
+            valve_1 = 'Valve' + '-' + str(self.operation_counter['Valve'])
+            self.operation_counter['Valve'] += 1
+            valve_2 = 'Valve' + '-' + str(self.operation_counter['Valve'])
+            self.operation_counter['Valve'] += 1
+
+            self.nodes.extend([ctrl_1, ctrl_2, valve_1, valve_2])
+            self.edges.extend([((node1, ctrl_1), {'in_connect': [], 'out_connect': []}),
+                               ((ctrl_1, valve_1), {'in_connect': ['next_unitop'], 'out_connect': []}),
+                               ((valve_1, mixing), {'in_connect': [], 'out_connect': []}),
+                               ((node2, ctrl_2), {'in_connect': [], 'out_connect': []}),
+                               ((ctrl_2, valve_2), {'in_connect': ['next_unitop'], 'out_connect': []}),
+                               ((valve_2, mixing), {'in_connect': [], 'out_connect': []})])
+
+        elif mixing_pattern == 'Pattern_2':
+            ctrl_1 = 'Control' + '-' + str(self.operation_counter['Control']) + '/FT'
+            self.operation_counter['Control'] += 1
+            ctrl_2 = 'Control' + '-' + str(self.operation_counter['Control']) + '/FFC'
+            self.operation_counter['Control'] += 1
+            valve_1 = 'Valve' + '-' + str(self.operation_counter['Valve'])
+            self.operation_counter['Valve'] += 1
+
+            self.nodes.extend([ctrl_1, ctrl_2, valve_1])
+            self.edges.extend([((node1, ctrl_1), {'in_connect': [], 'out_connect': []}),
+                               ((ctrl_1, mixing), {'in_connect': [], 'out_connect': []}),
+                               ((node2, ctrl_2), {'in_connect': [], 'out_connect': []}),
+                               ((ctrl_2, valve_1), {'in_connect': ['next_unitop'], 'out_connect': []}),
+                               ((valve_1, mixing), {'in_connect': [], 'out_connect': []}),
+                               ((ctrl_1, ctrl_2), {'in_connect': ['not_next_unitop'], 'out_connect': []})])
