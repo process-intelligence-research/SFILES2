@@ -112,8 +112,7 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags):
 
 def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, nodes_position_setoffs,
         nodes_position_setoffs_cycle, special_edges, edge_information, first_traversal, sfiles, node_insertion):
-
-    """ 
+    """
     Depth first search implementation to traverse the directed graph from the virtual node
     Parameters
     ----------
@@ -798,8 +797,23 @@ def insert_signal_connections(edge_infos_signal, ranks, sfiles, nodes_position_s
         """
     nr_pre_visited_signal = 0
     res_list = [x[0] for x in edge_infos_signal.keys()]
+    sfiles_flattend = flatten(sfiles)
+    x = {}
     if res_list:
-        res_list_sorted = sort_by_rank(res_list, ranks)
+        # TODO: Check if new sorting is correct. Before: Sorting with rank -> caused problems if rank changed after renumbering. Now: sorting according position in sfiles.
+        # res_list_sorted = sort_by_rank(res_list, ranks)
+        # edge_infos_signal = dict(sorted(edge_infos_signal.items(), key=lambda pair: res_list_sorted.index(pair[0][0])))
+        nodes_position_setoffs_temp = nodes_position_setoffs.copy()
+        nodes_position_setoffs_cycle_temp = nodes_position_setoffs_cycle.copy()
+        for k in res_list:
+            x.update({position_finder(nodes_position_setoffs, k, sfiles_flattend, nodes_position_setoffs_cycle)[0]: k})
+
+        # Reset node_position_setoffs since they are manipulated by position_finder
+        nodes_position_setoffs_cycle = nodes_position_setoffs_cycle_temp.copy()
+        nodes_position_setoffs = nodes_position_setoffs_temp.copy()
+        sortedx = dict(sorted(x.items()))
+        res_list_sorted = list(sortedx.values())
+
         edge_infos_signal = dict(sorted(edge_infos_signal.items(), key=lambda pair: res_list_sorted.index(pair[0][0])))
 
     for k, v in edge_infos_signal:

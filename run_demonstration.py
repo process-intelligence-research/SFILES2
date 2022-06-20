@@ -41,7 +41,6 @@ else:
 
 # Try to create a new flowsheet from SFILES string
 flowsheet_2=Flowsheet()
-# TODO: Recycles are not considered as branches?
 sfiles_in="(raw)(pp)<1<&|(raw)&|(flash){tout}1{bout}(prod)n|(raw)(prod)" # has to be valid according to SFILES rules
 flowsheet_2.create_from_sfiles(sfiles_in)
 flowsheet_2.visualize_flowsheet(table=False, pfd_path='plots/flowsheet3', plot_with_stream_labels=False)

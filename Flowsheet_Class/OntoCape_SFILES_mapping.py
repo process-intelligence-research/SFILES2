@@ -34,5 +34,6 @@ OntoCape_SFILES_map = {
 'Hydrocyclone':'hcycl',
 'ElectricalGasCleaningUnit':'egclean',
 'Valve':'v',
-'ProcessUnit':'X'
+'ProcessUnit':'X',
+'Control': 'C'
 }

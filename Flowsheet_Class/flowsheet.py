@@ -1,11 +1,12 @@
 import warnings
 from Flowsheet_Class.OntoCape_SFILES_mapping import OntoCape_SFILES_map
-from Flowsheet_Class.RandomFlowsheetGen_OC.random_flowsheet_generator import Generate_flowsheet
+#from Flowsheet_Class.RandomFlowsheetGen_OC.random_flowsheet_generator import Generate_flowsheet
 import networkx as nx
 from Flowsheet_Class.utils_visualization import create_stream_table, create_unit_table, plot_flowsheet_nx, \
     plot_flowsheet_pyflowsheet
 import re
 from Flowsheet_Class.nx_to_sfiles import nx_to_SFILES
+from Flowsheet_Class.RandomFlowsheetGen_OC.random_flowsheet_generator_ctrl import Generate_flowsheet
 
 
 class Flowsheet:
@@ -349,12 +350,15 @@ class Flowsheet:
             # matches everything starting with 'hot', 'cold', or a number
             regex_he = re.compile(r"(hot.*|cold.*|[0-9].*)")
             regex_col = re.compile(r"(^t.*|^b.*)")  # matches e.g. 'b_out' or 'bout'
+            regex_signal = re.compile(r"not_next_unitop|next_unitop")
             old_tags = connection[2]['tags']
             tags = {'he': [m.group(0) for k in old_tags for m in [regex_he.search(k)] if m],
-                    'col': [m.group(0) for k in old_tags for m in [regex_col.search(k)] if m]}
+                    'col': [m.group(0) for k in old_tags for m in [regex_col.search(k)] if m],
+                    'signal': [m.group(0) for m in [regex_signal.search(str(old_tags))] if m]}
             self.add_stream(connection[0], connection[1], tags=tags)
         if add_sfiles:
             self.convert_to_sfiles(version='v2')
+
 
     def visualize_flowsheet(self, figure=True, plot_with_stream_labels=True, table=True, plot_as_pfd=True,
                             pfd_block=True, decimals=3, pfd_path='plots/flowsheet', chemicalspecies=None,
