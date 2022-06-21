@@ -1,5 +1,6 @@
 from Flowsheet_Class.RandomFlowsheetGen_OC.patterns import *
 from Flowsheet_Class.RandomFlowsheetGen_OC.unit_operations import unit_ops, unit_ops_probabilities
+from Read_ctrl_patterns import read_ctrl_pattern
 import sys
 import os
 import random
@@ -952,96 +953,10 @@ class Generate_flowsheet:
 
     def rectification_ctrl_pattern(self, node):
 
+        nodes, edges, start_node, end_nodes = read_ctrl_pattern(self.operation_counter)
+        self.nodes.extend(nodes)
+        self.edges.extend([((node, start_node), {'in_connect': [], 'out_connect': []})])
+        self.edges.extend(edges)
+
         rectification_ctrl_patter = random.choices(['Pattern_1', 'Pattern_2', 'Pattern_3'], [1, 0, 0])[0]
-
-        valve = []
-        for k in range(7):
-            valve.append('Valve' + '-' + str(self.operation_counter['Valve']))
-            self.operation_counter['Valve'] += 1
-
-        ctrl = []
-        for k in range(3):
-            ctrl.append('Control' + '-' + str(self.operation_counter['Control']) + '/FC')
-            self.operation_counter['Control'] += 1
-
-        ctrl.append('Control' + '-' + str(self.operation_counter['Control']) + '/LC')
-        self.operation_counter['Control'] += 1
-        ctrl.append('Control' + '-' + str(self.operation_counter['Control']) + '/LC')
-        self.operation_counter['Control'] += 1
-        ctrl.append('Control' + '-' + str(self.operation_counter['Control']) + '/TC')
-        self.operation_counter['Control'] += 1
-        ctrl.append('Control' + '-' + str(self.operation_counter['Control']) + '/PC')
-        self.operation_counter['Control'] += 1
-
-        heatexchanger_1 = 'HeatExchanger' + '-' + str(self.operation_counter['HeatExchanger'])
-        self.operation_counter['HeatExchanger'] += 1
-        heatexchanger_2 = 'HeatExchanger' + '-' + str(self.operation_counter['HeatExchanger'])
-        self.operation_counter['HeatExchanger'] += 1
-        splt_1 = 'SplittingUnit' + '-' + str(self.operation_counter['SplittingUnit'])
-        self.operation_counter['SplittingUnit'] += 1
-        splt_2 = 'SplittingUnit' + '-' + str(self.operation_counter['SplittingUnit'])
-        self.operation_counter['SplittingUnit'] += 1
-        condenser = 'Condenser' + '-' + str(self.operation_counter['Condenser'])
-        self.operation_counter['Condenser'] += 1
-        column = 'RectificationSystem' + '-' + str(self.operation_counter['RectificationSystem'])
-        self.operation_counter['RectificationSystem'] += 1
-        separation = 'SeparationUnit' + '-' + str(self.operation_counter['SeparationUnit'])
-        self.operation_counter['SeparationUnit'] += 1
-        output_node = 'OutputProduct-%d' % self.operation_counter['OutputProduct']
-        self.operation_counter['OutputProduct'] += 1
-        utility_1_in = 'RawMaterial-%d' % self.operation_counter['RawMaterial']
-        self.operation_counter['RawMaterial'] += 1
-        utility_1_out = 'OutputProduct-%d' % self.operation_counter['OutputProduct']
-        self.operation_counter['OutputProduct'] += 1
-        utility_2_in = 'RawMaterial-%d' % self.operation_counter['RawMaterial']
-        self.operation_counter['RawMaterial'] += 1
-        utility_2_out = 'OutputProduct-%d' % self.operation_counter['OutputProduct']
-        self.operation_counter['OutputProduct'] += 1
-
-        self.nodes.extend([heatexchanger_1, heatexchanger_2, condenser, column, separation, ctrl[0], ctrl[1],
-                           ctrl[2], ctrl[3], ctrl[4], ctrl[5], ctrl[6], splt_1, splt_2, output_node,
-                           utility_1_in, utility_1_out, utility_2_in, utility_2_out, valve[0], valve[1],
-                           valve[2], valve[3], valve[4], valve[5], valve[6]])
-
-        # Column feed control
-        self.edges.extend([((node, ctrl[0]), {'in_connect': [], 'out_connect': []})])
-        self.edges.extend([((ctrl[0], valve[0]), {'in_connect': ['next_unitop'], 'out_connect': []})])
-        self.edges.extend([((valve[0], heatexchanger_1), {'in_connect': ['1_in'], 'out_connect': []})])
-        self.edges.extend([((heatexchanger_1, ctrl[5]), {'in_connect': [], 'out_connect': ['1_out']})])
-        self.edges.extend([((ctrl[5], column), {'in_connect': [], 'out_connect': []})])
-        self.edges.extend([((utility_1_in, valve[5]), {'in_connect': [], 'out_connect': []})])
-        self.edges.extend([((valve[5], heatexchanger_1), {'in_connect': ['2_in'], 'out_connect': []})])
-        self.edges.extend([((heatexchanger_1, utility_1_out), {'in_connect': [], 'out_connect': ['2_out']})])
-        self.edges.extend([((ctrl[5], valve[5]), {'in_connect': ['not_next_unitop'], 'out_connect': []})])
-
-        self.edges.extend([((column, ctrl[6]), {'in_connect': [], 'out_connect': []})])
-        self.edges.extend([((column, ctrl[3]), {'in_connect': [], 'out_connect': []})])
-        self.edges.extend([((column, condenser), {'in_connect': [], 'out_connect': ['tout']})])
-        self.edges.extend([((condenser, separation), {'in_connect': [], 'out_connect': []})])
-        self.edges.extend([((separation, splt_1), {'in_connect': [], 'out_connect': []})])
-        self.edges.extend([((splt_1, valve[1]), {'in_connect': [], 'out_connect': []})])
-        self.edges.extend([((valve[1], column), {'in_connect': [], 'out_connect': []})])
-        self.edges.extend([((separation, valve[4]), {'in_connect': [], 'out_connect': []})])
-        self.edges.extend([((valve[4], output_node), {'in_connect': [], 'out_connect': []})])
-
-        self.edges.extend([((column, splt_2), {'in_connect': [], 'out_connect': ['bout']})])
-        self.edges.extend([((splt_2, valve[3]), {'in_connect': [], 'out_connect': []})])
-        self.edges.extend([((splt_2, heatexchanger_2), {'in_connect': ['1_in'], 'out_connect': []})])
-        self.edges.extend([((heatexchanger_2, column), {'in_connect': [], 'out_connect': ['1_out']})])
-
-        self.edges.extend([((ctrl[6], valve[4]), {'in_connect': ['not_next_unitop'], 'out_connect': []})])
-
-        if rectification_ctrl_patter == 'Pattern_1':
-            self.edges.extend([((separation, ctrl[4]), {'in_connect': [], 'out_connect': []})])
-            self.edges.extend([((ctrl[4], valve[1]), {'in_connect': ['not_next_unitop'], 'out_connect': []})])
-            self.edges.extend([((splt_1, ctrl[1]), {'in_connect': [], 'out_connect': []})])
-            self.edges.extend([((ctrl[1], valve[2]), {'in_connect': ['next_unitop'], 'out_connect': []})])
-
-            self.edges.extend([((ctrl[3], valve[3]), {'in_connect': ['not_next_unitop'], 'out_connect': []})])
-
-            self.edges.extend([((utility_2_in, ctrl[2]), {'in_connect': [], 'out_connect': []})])
-            self.edges.extend([((ctrl[2], valve[6]), {'in_connect': ['next_unitop'], 'out_connect': []})])
-            self.edges.extend([((valve[6], heatexchanger_2), {'in_connect': ['2_in'], 'out_connect': []})])
-            self.edges.extend([((heatexchanger_2, utility_2_out), {'in_connect': [], 'out_connect': ['2_out']})])
-
-            return valve[2], valve[3]
+        return end_nodes[0], end_nodes[1]
