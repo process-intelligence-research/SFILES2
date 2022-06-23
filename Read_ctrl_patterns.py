@@ -1,5 +1,5 @@
 import json
-from Flowsheet_Class.RandomFlowsheetGen_OC.unit_operations import unit_ops, unit_ops_probabilities
+import os
 
 """Extract nested values from a JSON tree."""
 # https://hackersandslackers.com/extract-data-from-complex-json-python/
@@ -24,14 +24,13 @@ def json_extract(obj, key):
     return values
 
 
-def read_ctrl_pattern(operation_counter):
-    # TODO: Replace static link with relative path to pattern.
-    f = open(r'C:\Users\hirtr\OneDrive - TUM\Dokumente\PI Research\SFILES2_0\ControlPatterns\column_pattern_1.json')
-    data = json.load(f)
-
-    # unitop counter
-    #flat_list = [x for xs in list(unit_ops.values()) for x in xs]
-    #operation_counter = {s: 1 for s in flat_list}
+def read_ctrl_pattern(operation_counter, pattern):
+    # Load patterns from file.
+    current_path = os.path.dirname(__file__)
+    rel_path = ''.join(['ControlPatterns\\', pattern, '.json'])
+    path = os.path.join(current_path, rel_path)
+    with open(path) as f:
+        data = json.load(f)
 
     #print(json.dumps(data, indent=4))
     nodes = json_extract(data, 'caption')
@@ -65,7 +64,18 @@ def read_ctrl_pattern(operation_counter):
     edges = list(zip(edges, special_edges))
 
     # TODO: Include automatic recognition of start and end nodes
-    start_node = nodes[0]
-    end_nodes = [nodes[19], nodes[20]]
-    f.close()
+    nodetype = {}
+    for k in range(len(data['nodes'])):
+        if data['nodes'][k]['properties']:
+            nodetype.update({data['nodes'][k]['id']: data['nodes'][k]['properties']['nodetype']})
+    nodetype = {mapping[k]: v for k, v in nodetype.items()}
+
+    end_nodes = []
+    start_node = None
+    for k, v in nodetype.items():
+        if v == 'start_node':
+            start_node = k
+        elif v == 'end_node':
+            end_nodes.append(k)
+
     return nodes, edges, start_node, end_nodes

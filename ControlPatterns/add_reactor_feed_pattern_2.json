@@ -1,0 +1,181 @@
+{
+  "style": {
+    "font-family": "sans-serif",
+    "background-color": "#ffffff",
+    "background-image": "",
+    "background-size": "100%",
+    "node-color": "#ffffff",
+    "border-width": 4,
+    "border-color": "#000000",
+    "radius": 50,
+    "node-padding": 5,
+    "node-margin": 2,
+    "outside-position": "auto",
+    "node-icon-image": "",
+    "node-background-image": "",
+    "icon-position": "inside",
+    "icon-size": 64,
+    "caption-position": "inside",
+    "caption-max-width": 200,
+    "caption-color": "#000000",
+    "caption-font-size": 50,
+    "caption-font-weight": "normal",
+    "label-position": "inside",
+    "label-display": "pill",
+    "label-color": "#000000",
+    "label-background-color": "#ffffff",
+    "label-border-color": "#000000",
+    "label-border-width": 4,
+    "label-font-size": 40,
+    "label-padding": 5,
+    "label-margin": 4,
+    "directionality": "directed",
+    "detail-position": "inline",
+    "detail-orientation": "parallel",
+    "arrow-width": 5,
+    "arrow-color": "#000000",
+    "margin-start": 5,
+    "margin-end": 5,
+    "margin-peer": 20,
+    "attachment-start": "normal",
+    "attachment-end": "normal",
+    "relationship-icon-image": "",
+    "type-color": "#000000",
+    "type-background-color": "#ffffff",
+    "type-border-color": "#000000",
+    "type-border-width": 0,
+    "type-font-size": 16,
+    "type-padding": 5,
+    "property-position": "outside",
+    "property-alignment": "colon",
+    "property-color": "#000000",
+    "property-font-size": 16,
+    "property-font-weight": "normal"
+  },
+  "nodes": [
+    {
+      "id": "n7",
+      "position": {
+        "x": -592.4416162610669,
+        "y": 234
+      },
+      "caption": "RawMaterial-x",
+      "style": {},
+      "labels": [],
+      "properties": {
+        "nodetype": "start_node"
+      }
+    },
+    {
+      "id": "n8",
+      "position": {
+        "x": -326.5,
+        "y": 234
+      },
+      "caption": "Control-x/FT",
+      "style": {},
+      "labels": [],
+      "properties": {}
+    },
+    {
+      "id": "n9",
+      "position": {
+        "x": -60.55838373893312,
+        "y": 233.99999999999997
+      },
+      "caption": "Valve-x",
+      "style": {},
+      "labels": [],
+      "properties": {
+        "nodetype": "end_node"
+      }
+    },
+    {
+      "id": "n10",
+      "position": {
+        "x": -592.4416162610667,
+        "y": 518.3901204705639
+      },
+      "caption": "Control-x/FT",
+      "labels": [],
+      "properties": {
+        "nodetype": "start_node"
+      },
+      "style": {}
+    },
+    {
+      "id": "n11",
+      "position": {
+        "x": -326.4999999999998,
+        "y": 518.3901204705639
+      },
+      "caption": "Control-x/FT",
+      "labels": [],
+      "properties": {
+        "nodetype": "end_node"
+      },
+      "style": {}
+    },
+    {
+      "id": "n13",
+      "position": {
+        "x": -182.2579385131496,
+        "y": 374.1480589837138
+      },
+      "caption": "Control-x/FFC",
+      "style": {},
+      "labels": [],
+      "properties": {}
+    }
+  ],
+  "relationships": [
+    {
+      "id": "n7",
+      "type": "",
+      "style": {},
+      "properties": {},
+      "fromId": "n7",
+      "toId": "n8"
+    },
+    {
+      "id": "n8",
+      "type": "next_unitop",
+      "style": {},
+      "properties": {},
+      "fromId": "n8",
+      "toId": "n9"
+    },
+    {
+      "id": "n9",
+      "fromId": "n10",
+      "toId": "n11",
+      "type": "",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n11",
+      "type": "not_next_unitop",
+      "style": {},
+      "properties": {},
+      "fromId": "n11",
+      "toId": "n13"
+    },
+    {
+      "id": "n12",
+      "type": "not_next_unitop",
+      "style": {},
+      "properties": {},
+      "fromId": "n8",
+      "toId": "n13"
+    },
+    {
+      "id": "n13",
+      "type": "not_next_unitop",
+      "style": {},
+      "properties": {},
+      "fromId": "n13",
+      "toId": "n9"
+    }
+  ]
+}

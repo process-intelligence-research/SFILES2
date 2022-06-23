@@ -26,7 +26,7 @@ class Generate_flowsheet:
         _detailed_ops = self.flatten(list(unit_ops.values()))
         self.operation_counter = {s: 1 for s in _detailed_ops}
         self.HI_hex_stream_counter = {}
-        self.include_controls = False
+        self.include_controls = True
 
         # 1. Initializing step determine the number of raw materials
         self.raw_materials()
@@ -41,7 +41,7 @@ class Generate_flowsheet:
             - random heat exchangers and pumps
             - mix the streams with mixers 'mix-#'
         """
-        
+
         #self.number_raw = random.choice([1, 2, 3])  # chose the first node randomly, each node with equal probability
         # TODO: for now only two raw material streams are allowed!
         self.number_raw = random.choice([1, 2])  # chose the first node randomly, each node with equal probability
@@ -148,13 +148,13 @@ class Generate_flowsheet:
 
         if _next_op_cat == 'Reaction':
             self.reaction(connect_info)
-            
+
         elif _next_op_cat == 'ThermalSeparation':
             self.separation_thermal(connect_info)
 
         elif _next_op_cat == 'CountercurrentSeparation':
             self.separation_sep(connect_info)
-        
+
         elif _next_op_cat == 'Filtration':
             self.separation_filt(connect_info)
 
@@ -173,7 +173,7 @@ class Generate_flowsheet:
         _current_node = self.last_node
 
         pattern = random.choices(list(reactor_patterns.keys()), [i[1][0] for i in list(reactor_patterns.values())])[0]
-        
+
         # Connect the last node to first of this pattern
         for _next_op_cat in reactor_patterns[pattern][0]:
             _next_op_name, _ = self.select_unit_name(_next_op_cat)
@@ -182,10 +182,10 @@ class Generate_flowsheet:
             connect_info = []  # Reset connect_info after first edge in this function.
             # Reset the current node
             _current_node = _next_op_name
-        
+
         # Save reactor node name. Reactor always last element of reactor pattern.
         _reac_node = _current_node
-        
+
         # Recycling, Heat integration, additional reactants, and None
         if 'TemperatureChange' in reactor_patterns[pattern][0]:
             special_op = random.choices(['Rec', 'HI', 'AddR', 'None'], [0.35, 0.25, 0.2, 0.2])[0]
@@ -197,7 +197,7 @@ class Generate_flowsheet:
         Recycling:
         We need to insert a mixer before the reactor node, a splitter after the reactor node and adjust the edges
         ----------
-        """ 
+        """
         if special_op == 'Rec':
             # Mixer
             _mixer_name, _ = self.select_unit_name('Mixing')
@@ -224,7 +224,7 @@ class Generate_flowsheet:
 
             # splitter is the node where to continue from
             _current_node = _splitter_name
-        
+
         """
         ----------
         Heat integration:
@@ -234,7 +234,7 @@ class Generate_flowsheet:
         And adjust the node for the first stream: hex-#/1
         By default the first heat exchanger (2 possible) is used for HI
         ----------
-        """ 
+        """
         if special_op == 'HI':
             # nodes[nodepos] where nodepos =-len(pattern)+pos(1.heat exchanger)
             _nodepos = - len(reactor_patterns[pattern][0]) + reactor_patterns[pattern][0].index('TemperatureChange')
@@ -262,7 +262,7 @@ class Generate_flowsheet:
                 self.edges.append(((_current_node, _next_stream_HI_node),
                                    {'in_connect': connect_info, 'out_connect': []}))
                 self.HI_hex_stream_counter[_heat_ex_HI] = 2  # 2 nodes
-            
+
             # set current node to new hex node
             _current_node = _next_stream_HI_node
             connect_info = []
@@ -272,7 +272,7 @@ class Generate_flowsheet:
         Add reactants:
         The only thing to do is to add one new input stream that ends in the reactor
         ----------
-        """ 
+        """
         if special_op == 'AddR':
             pattern = random.choices(list(addR_patterns.keys()), [i[1][0] for i in list(addR_patterns.values())])[0]
             for i, _next_op_cat in enumerate(addR_patterns[pattern][0]):
@@ -284,7 +284,7 @@ class Generate_flowsheet:
                     if _next_op_cat == 'Reaction':
                         self.edges.append(((_current_node, _reac_node),
                                            {'in_connect': connect_info, 'out_connect': []}))
-                    else: 
+                    else:
                         # detergent preprocessing with node and edge for instance hex in Feed-hex-sep sequence
                         _next_op_name, _next_op = self.select_unit_name(_next_op_cat)
                         self.nodes.append(_next_op_name)
@@ -296,7 +296,7 @@ class Generate_flowsheet:
 
             # Set current node to reactor node -> where we want to continue
             _current_node = _reac_node
-                
+
         # reset the last node to current_node -> Where we continue
         # (AddR: _reac_node, HI: _next_stream_HI_node, Rec: _splitter_name)
         self.last_node = _current_node
@@ -315,7 +315,7 @@ class Generate_flowsheet:
         _current_node = self.last_node
         pattern = random.choices(list(thermal_sep_patterns.keys()),
                                  [i[1][0] for i in list(thermal_sep_patterns.values())])[0]
-        
+
         # Connect the last node to first of this pattern
         for _next_op_cat in thermal_sep_patterns[pattern][0]:
             _next_op_name, _ = self.select_unit_name(_next_op_cat)
@@ -324,15 +324,15 @@ class Generate_flowsheet:
             connect_info = []  # Reset connect_info after first node in this function
             # Reset the current node
             _current_node = _next_op_name
-        
+
         """
         ----------
         Refluxes
         Branches
         ----------
-        """ 
+        """
         # 1. Adjust column node with top and bottom connections
-        
+
         _branches = ['tout', 'bout']
         for b in _branches:
             if b == 'bout' and random.choices(['reb', 'noreb'], [0.5, 0.5])[0] == 'reb':
@@ -518,12 +518,12 @@ class Generate_flowsheet:
             connect_info = []  # Reset connect_info after first edge in this function
             # Reset the current node
             _current_node = _next_op_name
-        
+
         """
         ----------
         Branches
         ----------
-        """ 
+        """
         _branches = ['bout', 'tout']
         for b in _branches:
             self.last_node = _current_node
@@ -537,7 +537,7 @@ class Generate_flowsheet:
                 self.operation_counter['OutputProduct'] += 1
             else:
                 self.next_operation(connect_info)
-    
+
     def separation_centr(self, connect_info):
         """ 
         - The following lines randomly (with probabilities, see Patterns.py) picks a pattern containing a vessel
@@ -554,12 +554,12 @@ class Generate_flowsheet:
             connect_info = []  # Reset connect_info after first edge in this function
             # Reset the current node
             _current_node = _next_op_name
-        
+
         """
         ----------
         Branches
         ----------
-        """ 
+        """
         _branches = ['bout', 'tout']
         for b in _branches:
             self.last_node = _current_node
@@ -594,12 +594,12 @@ class Generate_flowsheet:
                 connect_info = []  # Reset connect_info after first edge in this function
                 # Reset the current node
                 _current_node = _next_op_name
-            
+
         """ Random special operations to increase variety """
         # Check for heat exchangers in nodes
         _hexs = []
         for i, n in enumerate(list(self.nodes)):
-            if 'HeatExchanger' in n: 
+            if 'HeatExchanger' in n:
                 if not n == _current_node:
                     _hexs.append((i, n))
         if len(list(self.edges)) > 1 and len(_hexs) > 0:
@@ -619,7 +619,7 @@ class Generate_flowsheet:
             Recycling:
             Insert a mixer somewhere and a splitter before the IO node
             ----------
-            """ 
+            """
             # mixer
             _mixer_name, _ = self.select_unit_name('Mixing')
 
@@ -640,10 +640,10 @@ class Generate_flowsheet:
             self.edges.append(((_pre_node, _mixer_name), {'in_connect': _presuc_info, 'out_connect': []}))
             self.edges.append(((_mixer_name, _suc_node), {'in_connect': [], 'out_connect': _suc_info}))
             del self.edges[_edge_pos]  # delete old edge
-            
+
             # splitter
             _splitter_name, _ = self.select_unit_name('Splitting')
-            self.nodes.append(_splitter_name) 
+            self.nodes.append(_splitter_name)
             self.edges.append(((_current_node, _splitter_name), {'in_connect': connect_info, 'out_connect': []})) # current to spltiter; here we need possible connection information
             connect_info = []  # Reset connect_info after first edge in this function
             self.edges.append(((_splitter_name, _mixer_name), {'in_connect': [], 'out_connect': []}))  # splitter to mixer
@@ -658,7 +658,7 @@ class Generate_flowsheet:
         And adjust the node for the first stream: hex-#/1
         In rare cases we select a heat exchanger that is already used for heat integration. 
         ----------
-        """ 
+        """
         if special_op == 'HI':
 
             _item = random.choices(_hexs)[0]
@@ -688,7 +688,7 @@ class Generate_flowsheet:
                 self.edges.append(((_current_node, _next_stream_HI_node),
                                    {'in_connect': connect_info, 'out_connect': []}))
                 self.HI_hex_stream_counter[_heat_ex_HI] = 2  # 2 nodes
-            
+
             # set current node to new hex node
             _current_node = _next_stream_HI_node
             connect_info = []
@@ -696,7 +696,7 @@ class Generate_flowsheet:
             self.nodes.append(_next_op_name) # the IO node
             self.edges.append(((_current_node, _next_op_name), {'in_connect': [], 'out_connect': []}))
             _current_node = _next_op_name
-            
+
 
         elif special_op == 'None':
             self.nodes.append(_next_op_name)
@@ -764,7 +764,7 @@ class Generate_flowsheet:
         self.operation_counter[_category] += 1
 
         return _unit_name, _category
-    
+
     def adjust_HI_edges(self, old_node_name, new_node_name, in_out):
         """ Function to adjust edges according to new hex name (heat integration) 
 
@@ -793,7 +793,7 @@ class Generate_flowsheet:
             _edge_pos = _outgoing[0]
             _connection_info = _outgoing[1][1]  # dict with connection information
             _in_node = _outgoing[1][0][0]  # should equal the old_node_name
-            _out_node = _outgoing[1][0][1] 
+            _out_node = _outgoing[1][0][1]
             assert(_in_node == old_node_name)
             self.edges[_edge_pos] = ((new_node_name, _out_node), _connection_info)
 
@@ -873,73 +873,16 @@ class Generate_flowsheet:
     def pressure_ctrl_pattern(self, node, _next_op):
 
         if _next_op == 'Pump':
-            pressure_ctrl_patter = random.choices(['Pattern_1', 'Pattern_2', 'Pattern_3'], [0.2, 0.5, 0.3])[0]
 
-            if pressure_ctrl_patter == 'Pattern_1':
-                mixing = 'MixingUnit' + '-' + str(self.operation_counter['MixingUnit'])
-                self.operation_counter['MixingUnit'] += 1
-                pump = 'Pump' + '-' + str(self.operation_counter['Pump'])
-                self.operation_counter['Pump'] += 1
-                splt = 'SplittingUnit' + '-' + str(self.operation_counter['SplittingUnit'])
-                self.operation_counter['SplittingUnit'] += 1
-                ctrl_1 = 'Control' + '-' + str(self.operation_counter['Control']) + '/PI'
-                self.operation_counter['Control'] += 1
-                ctrl_2 = 'Control' + '-' + str(self.operation_counter['Control']) + '/FC'
-                self.operation_counter['Control'] += 1
-                ctrl_3 = 'Control' + '-' + str(self.operation_counter['Control']) + '/M'
-                self.operation_counter['Control'] += 1
-                valve = 'Valve' + '-' + str(self.operation_counter['Valve'])
-                self.operation_counter['Valve'] += 1
+            pattern = random.choices(['pump_pattern_1', 'pump_pattern_2', 'pump_pattern_3'],
+                                                  [0.2, 0.5, 0.3])[0]
 
-                self.nodes.extend([mixing, pump, splt, ctrl_1, ctrl_2, ctrl_3, valve])
-                self.edges.extend([((node, mixing), {'in_connect': [], 'out_connect': []}),
-                                   ((mixing, pump), {'in_connect': [], 'out_connect': []}),
-                                   ((pump, splt), {'in_connect': [], 'out_connect': []}),
-                                   ((splt, ctrl_1), {'in_connect': [], 'out_connect': []}),
-                                   ((ctrl_1, ctrl_2), {'in_connect': [], 'out_connect': []}),
-                                   ((ctrl_2, valve), {'in_connect': ['not_next_unitop'], 'out_connect': []}),
-                                   ((splt, valve), {'in_connect': [], 'out_connect': []}),
-                                   ((valve, mixing), {'in_connect': [], 'out_connect': []}),
-                                   ((pump, ctrl_3), {'in_connect': [], 'out_connect': []})])
-                return ctrl_2
+            nodes, edges, start_node, end_nodes = read_ctrl_pattern(self.operation_counter, pattern)
+            self.nodes.extend(nodes)
+            self.edges.extend([((node, start_node), {'in_connect': [], 'out_connect': []})])
+            self.edges.extend(edges)
 
-            elif pressure_ctrl_patter == 'Pattern_2':
-                pump = 'Pump' + '-' + str(self.operation_counter['Pump'])
-                self.operation_counter['Pump'] += 1
-                ctrl_1 = 'Control' + '-' + str(self.operation_counter['Control']) + '/PI'
-                self.operation_counter['Control'] += 1
-                ctrl_2 = 'Control' + '-' + str(self.operation_counter['Control']) + '/FC'
-                self.operation_counter['Control'] += 1
-                ctrl_3 = 'Control' + '-' + str(self.operation_counter['Control']) + '/M'
-                self.operation_counter['Control'] += 1
-                valve = 'Valve' + '-' + str(self.operation_counter['Valve'])
-                self.operation_counter['Valve'] += 1
-
-                self.nodes.extend([pump, ctrl_1, ctrl_2, ctrl_3, valve])
-                self.edges.extend([((node, pump), {'in_connect': [], 'out_connect': []}),
-                                   ((pump, ctrl_1), {'in_connect': [], 'out_connect': []}),
-                                   ((ctrl_1, ctrl_2), {'in_connect': [], 'out_connect': []}),
-                                   ((ctrl_2, valve), {'in_connect': ['next_unitop'], 'out_connect': []}),
-                                   ((pump, ctrl_3), {'in_connect': [], 'out_connect': []})])
-                return ctrl_2
-
-            elif pressure_ctrl_patter == 'Pattern_3':
-                pump = 'Pump' + '-' + str(self.operation_counter['Pump'])
-                self.operation_counter['Pump'] += 1
-                ctrl_1 = 'Control' + '-' + str(self.operation_counter['Control']) + '/PI'
-                self.operation_counter['Control'] += 1
-                ctrl_2 = 'Control' + '-' + str(self.operation_counter['Control']) + '/FC'
-                self.operation_counter['Control'] += 1
-                ctrl_3 = 'Control' + '-' + str(self.operation_counter['Control']) + '/M'
-                self.operation_counter['Control'] += 1
-
-                self.nodes.extend([pump, ctrl_1, ctrl_2, ctrl_3])
-                self.edges.extend([((node, pump), {'in_connect': [], 'out_connect': []}),
-                                   ((pump, ctrl_1), {'in_connect': [], 'out_connect': []}),
-                                   ((ctrl_1, ctrl_2), {'in_connect': [], 'out_connect': []}),
-                                   ((pump, ctrl_3), {'in_connect': [], 'out_connect': []}),
-                                   ((ctrl_2, ctrl_3), {'in_connect': ['not_next_unitop'], 'out_connect': []})])
-                return ctrl_2
+            return end_nodes[0]
 
         else:
             pressure_ctrl_patter = random.choices(['Pattern_1', 'Pattern_2', 'Pattern_3'], [1, 0, 0])[0]
@@ -953,10 +896,11 @@ class Generate_flowsheet:
 
     def rectification_ctrl_pattern(self, node):
 
-        nodes, edges, start_node, end_nodes = read_ctrl_pattern(self.operation_counter)
+        pattern = random.choices(['column_pattern_1', 'column_pattern_2', 'column_pattern_3', 'column_pattern_4',
+                                  'column_pattern_5', 'column_pattern_6'], [0.3, 0.2, 0.2, 0.1, 0.1, 0.1])[0]
+        nodes, edges, start_node, end_nodes = read_ctrl_pattern(self.operation_counter, pattern)
         self.nodes.extend(nodes)
         self.edges.extend([((node, start_node), {'in_connect': [], 'out_connect': []})])
         self.edges.extend(edges)
 
-        rectification_ctrl_patter = random.choices(['Pattern_1', 'Pattern_2', 'Pattern_3'], [1, 0, 0])[0]
         return end_nodes[0], end_nodes[1]
