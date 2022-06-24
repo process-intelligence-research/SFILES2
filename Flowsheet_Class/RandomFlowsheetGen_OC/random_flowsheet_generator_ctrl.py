@@ -42,9 +42,7 @@ class Generate_flowsheet:
             - mix the streams with mixers 'mix-#'
         """
 
-        #self.number_raw = random.choice([1, 2, 3])  # chose the first node randomly, each node with equal probability
-        # TODO: for now only two raw material streams are allowed!
-        self.number_raw = random.choice([1, 2])  # chose the first node randomly, each node with equal probability
+        self.number_raw = random.choice([1, 2, 3])  # chose the first node randomly, each node with equal probability
         for n in range(1, self.number_raw+1):
 
             _current_node = 'RawMaterial-%d' % self.operation_counter['RawMaterial']
@@ -96,9 +94,75 @@ class Generate_flowsheet:
                             _current_node = _next_op_name
 
 
+            if self.number_raw == 3:
+                while True:  # break when mixer is reached
+                    _next_op_cat = random.choices(['Mixing', 'TemperatureChange', 'PressureChange'],
+                                                  [0.7, 0.2, 0.1])[0]
+                    _next_op = random.choices(unit_ops_probabilities[_next_op_cat][0],
+                                              unit_ops_probabilities[_next_op_cat][1])[0]
+                    _next_op_name = _next_op + '-' + str(self.operation_counter[_next_op])
+
+                    if _next_op_cat == 'Mixing':
+                        # Mixer of material 1 and 2
+                        if n == 1:
+                            self.nodes.append(_next_op_name)
+                            node1 = _current_node
+                            mixing = _next_op_name
+                            self.operation_counter[_next_op] += 1
+                            mixing_counter = 1
+                            if not self.include_controls:
+                                self.edges.append(
+                                    ((_current_node, _next_op_name), {'in_connect': [], 'out_connect': []}))
+                                _current_node = _next_op_name
+                            break
+                        elif n == 2 and mixing_counter == 1:
+                            # Node already exists
+                            node2 = _current_node
+                            mixing_counter = 2
+                            if self.include_controls:
+                                self.mixing_ctrl_pattern(node1, node2, mixing)
+                                _current_node = mixing
+                            else:
+                                self.edges.append(
+                                    ((_current_node, _next_op_name), {'in_connect': [], 'out_connect': []}))
+                                _current_node = mixing
+                        elif n == 2 and mixing_counter == 2:
+                            self.nodes.append(_next_op_name)
+                            node1 = _current_node
+                            mixing = _next_op_name
+                            self.operation_counter[_next_op] += 1
+                            mixing_counter = 1
+                            if not self.include_controls:
+                                self.edges.append(
+                                    ((_current_node, _next_op_name), {'in_connect': [], 'out_connect': []}))
+                                _current_node = _next_op_name
+                            break
+                        elif n == 3:
+                            node2 = _current_node
+                            mixing_counter = 2
+                            if self.include_controls:
+                                self.mixing_ctrl_pattern(node1, node2, mixing, second_mixer=True)
+                                _current_node = mixing
+                            else:
+                                self.edges.append(
+                                    ((_current_node, _next_op_name), {'in_connect': [], 'out_connect': []}))
+                                _current_node = mixing
+                            break
+
+
+                    else:
+                        if _next_op_cat == 'TemperatureChange' and self.include_controls:
+                            _current_node = self.temperature_ctrl_pattern(_current_node)
+                        elif _next_op_cat == 'PressureChange' and self.include_controls:
+                            _current_node = self.pressure_ctrl_pattern(_current_node, _next_op)
+                        else:
+                            self.operation_counter[_next_op] += 1
+                            self.nodes.append(_next_op_name)
+                            self.edges.append(((_current_node, _next_op_name), {'in_connect': [], 'out_connect': []}))
+                            _current_node = _next_op_name
 
             # Three raw materials
-            elif self.number_raw == 3:
+            '''elif self.number_raw == 3:
                 while True:  # break when mixer is reached
                     _next_op_cat = random.choices(['Mixing', 'TemperatureChange', 'PressureChange'],
                                                   [0.7, 0.2, 0.1])[0]
@@ -125,7 +189,7 @@ class Generate_flowsheet:
                             self.operation_counter[_next_op] += 1
                             break
                     else:
-                        self.operation_counter[_next_op] += 1
+                        self.operation_counter[_next_op] += 1'''
 
         self.last_node = _current_node  # last node (MixingUnit-1, MixingUnit-2 or RawMaterial-1)
 
@@ -798,12 +862,18 @@ class Generate_flowsheet:
             assert(_in_node == old_node_name)
             self.edges[_edge_pos] = ((new_node_name, _out_node), _connection_info)
 
-    def mixing_ctrl_pattern(self, node1, node2, mixing):
+    def mixing_ctrl_pattern(self, node1, node2, mixing, second_mixer=False):
         # TODO: It has to be checked if raw material stream includes already FC through other unitop.
         #  Material stream cannot be controlled by two or more FC!
         node = [node1, node2]
-        pattern = random.choices(['mixing_pattern_1', 'mixing_pattern_2'], [0.7, 0.3])[0]
+        if second_mixer:
+            pattern = random.choices(['mixing_pattern_3', 'mixing_pattern_4'], [0.7, 0.3])[0]
+        else:
+            pattern = random.choices(['mixing_pattern_1', 'mixing_pattern_2'], [0.7, 0.3])[0]
         end_nodes = read_ctrl_pattern(self, pattern, node)
+        if len(end_nodes) == 1:
+            end_nodes.append(node2)
+
         self.edges.extend([((end_nodes[0], mixing), {'in_connect': [], 'out_connect': []}),
                            ((end_nodes[1], mixing), {'in_connect': [], 'out_connect': []})])
 

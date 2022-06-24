@@ -82,12 +82,14 @@ def read_ctrl_pattern(self, pattern, last_node):
     if isinstance(last_node, str):
         last_node = [last_node]
 
-    if len(start_node) != len(last_node):
+    if len(start_node) != len(last_node) and not 'mixing' in pattern:
         print('Error. Too many start nodes!')
 
     for k in range(len(start_node)):
         if 'heatexchanger' in pattern:
             self.edges.extend([((last_node[k], start_node[k]), {'in_connect': ['1_in'], 'out_connect': []})])
+        elif 'mixing' in pattern:
+            self.edges.extend([((last_node[-k], start_node[k]), {'in_connect': ['1_in'], 'out_connect': []})])
         else:
             self.edges.extend([((last_node[k], start_node[k]), {'in_connect': [], 'out_connect': []})])
 
