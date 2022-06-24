@@ -39,16 +39,17 @@ class FlowsheetTests(unittest.TestCase):
             sfiles_2=ob.sfiles
             all_sfiles2.append(sfiles_2)
             all_sfiles4.append(re.sub(r'\{.*?\}', '',sfiles_2))
-        self.maxDiff=None
-        self.assertEqual(len(all_sfiles1), len(all_sfiles2), "There are some examples where SFILES notation has a different length.")
-        self.assertEqual(all_sfiles3, all_sfiles4, "There are some examples where SFILES notation produces a different string.")
-        print("There are %d duplicates"%(len(all_sfiles1) - len(set(all_sfiles1))))
-
         with open(r'C:\Users\hirtr\OneDrive - TUM\Dokumente\PI Research\SFILES2_0\new.txt', 'w') as fp:
             for item in all_sfiles1:
                 # write each item on a new line
                 fp.write("%s\n" % item)
             print('Done')
+
+        self.maxDiff=None
+        self.assertEqual(len(all_sfiles1), len(all_sfiles2), "There are some examples where SFILES notation has a different length.")
+        self.assertEqual(all_sfiles3, all_sfiles4, "There are some examples where SFILES notation produces a different string.")
+        print("There are %d duplicates"%(len(all_sfiles1) - len(set(all_sfiles1))))
+
 
         old = []
         with open(r'C:\Users\hirtr\OneDrive - TUM\Dokumente\PI Research\SFILES2_0\old.txt', 'r') as fp:

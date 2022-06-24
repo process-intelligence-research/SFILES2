@@ -66,6 +66,7 @@ class Generate_flowsheet:
                             self.nodes.append(_next_op_name)
                             node1 = self.nodes[-2]
                             mixing = self.nodes[-1]
+                            self.operation_counter[_next_op] += 1
                             if not self.include_controls:
                                 self.edges.append(
                                     ((_current_node, _next_op_name), {'in_connect': [], 'out_connect': []}))
@@ -73,14 +74,14 @@ class Generate_flowsheet:
                         elif n == 2:
                             # Node already exists
                             node2 = self.nodes[-1]
-                            self.operation_counter[_next_op] += 1
+
                             if self.include_controls:
                                 self.mixing_ctrl_pattern(node1, node2, mixing)
-                                _current_node = _next_op_name
+                                _current_node = mixing
                             else:
                                 self.edges.append(
                                     ((_current_node, _next_op_name), {'in_connect': [], 'out_connect': []}))
-                                _current_node = _next_op_name
+                                _current_node = mixing
                         break
 
                     else:
@@ -838,55 +839,21 @@ class Generate_flowsheet:
 
     def temperature_ctrl_pattern(self, node):
 
-        temperature_ctrl_pattern = random.choices(['Pattern_1', 'Pattern_2'], [0.2, 0.8])[0]
-
-        if temperature_ctrl_pattern == 'Pattern_1':
-            ctrl = 'Control' + '-' + str(self.operation_counter['Control']) + '/TC'
-            self.operation_counter['Control'] += 1
-            heatexchanger = 'HeatExchanger' + '-' + str(self.operation_counter['HeatExchanger'])
-            self.operation_counter['HeatExchanger'] += 1
-            self.nodes.extend([heatexchanger, ctrl])
-            self.edges.extend([((node, heatexchanger), {'in_connect': [], 'out_connect': []}),
-                               ((ctrl, heatexchanger), {'in_connect': ['not_next_unitop'], 'out_connect': []}),
-                               ((heatexchanger, ctrl), {'in_connect': [], 'out_connect': []})])
-            return ctrl
-        elif temperature_ctrl_pattern == 'Pattern_2':
-            ctrl = 'Control' + '-' + str(self.operation_counter['Control']) + '/TC'
-            self.operation_counter['Control'] += 1
-            valve = 'Valve' + '-' + str(self.operation_counter['Valve'])
-            self.operation_counter['Valve'] += 1
-            heatexchanger = 'HeatExchanger' + '-' + str(self.operation_counter['HeatExchanger'])
-            self.operation_counter['HeatExchanger'] += 1
-            utility_in = 'RawMaterial-%d' % self.operation_counter['RawMaterial']
-            self.operation_counter['RawMaterial'] += 1
-            utility_out = 'OutputProduct-%d' % self.operation_counter['OutputProduct']
-            self.operation_counter['OutputProduct'] += 1
-            self.nodes.extend([ctrl, heatexchanger, utility_in, utility_out])
-            self.edges.extend([((node, heatexchanger), {'in_connect': ['1_in'], 'out_connect': []}),
-                               ((heatexchanger, ctrl), {'in_connect': [], 'out_connect': ['1_out']}),
-                               ((utility_in, heatexchanger), {'in_connect': ['2_in'], 'out_connect': []}),
-                               ((heatexchanger, valve), {'in_connect': [], 'out_connect': ['2_out']}),
-                               ((valve, utility_out), {'in_connect': [], 'out_connect': []}),
-                               ((ctrl, valve), {'in_connect': ['not_next_unitop'], 'out_connect': []})])
-            return ctrl
+        pattern = random.choices(['heatexchanger_pattern_1', 'heatexchanger_pattern_2', 'heatexchanger_pattern_3',
+                                  'heatexchanger_pattern_4'], [0.1, 0.6, 0.2, 0.1])[0]
+        end_nodes = read_ctrl_pattern(self, pattern, node)
+        return end_nodes[0]
 
     def pressure_ctrl_pattern(self, node, _next_op):
 
         if _next_op == 'Pump':
-
-            pattern = random.choices(['pump_pattern_1', 'pump_pattern_2', 'pump_pattern_3'],
-                                                  [0.2, 0.5, 0.3])[0]
-
-            nodes, edges, start_node, end_nodes = read_ctrl_pattern(self.operation_counter, pattern)
-            self.nodes.extend(nodes)
-            self.edges.extend([((node, start_node), {'in_connect': [], 'out_connect': []})])
-            self.edges.extend(edges)
-
+            pattern = random.choices(['pump_pattern_1', 'pump_pattern_2', 'pump_pattern_3'], [0.2, 0.5, 0.3])[0]
+            end_nodes = read_ctrl_pattern(self, pattern, node)
             return end_nodes[0]
 
         else:
             pressure_ctrl_patter = random.choices(['Pattern_1', 'Pattern_2', 'Pattern_3'], [1, 0, 0])[0]
-
+            # TODO: Add compressor control pattern
             if pressure_ctrl_patter == 'Pattern_1':
                 compressor = _next_op + '-' + str(self.operation_counter[_next_op])
                 self.operation_counter[_next_op] += 1
@@ -898,9 +865,6 @@ class Generate_flowsheet:
 
         pattern = random.choices(['column_pattern_1', 'column_pattern_2', 'column_pattern_3', 'column_pattern_4',
                                   'column_pattern_5', 'column_pattern_6'], [0.3, 0.2, 0.2, 0.1, 0.1, 0.1])[0]
-        nodes, edges, start_node, end_nodes = read_ctrl_pattern(self.operation_counter, pattern)
-        self.nodes.extend(nodes)
-        self.edges.extend([((node, start_node), {'in_connect': [], 'out_connect': []})])
-        self.edges.extend(edges)
+        end_nodes = read_ctrl_pattern(self, pattern, node)
 
         return end_nodes[0], end_nodes[1]

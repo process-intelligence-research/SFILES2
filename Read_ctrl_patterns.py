@@ -24,7 +24,7 @@ def json_extract(obj, key):
     return values
 
 
-def read_ctrl_pattern(operation_counter, pattern):
+def read_ctrl_pattern(self, pattern, node):
     # Load patterns from file.
     current_path = os.path.dirname(__file__)
     rel_path = ''.join(['ControlPatterns\\', pattern, '.json'])
@@ -40,8 +40,8 @@ def read_ctrl_pattern(operation_counter, pattern):
         if '/' in v:
             ctrl = v.split(sep='/')[1]
             ctrl = '/' + ctrl
-        nodes[k] = ''.join(filter(None, [unit_name, '-', str(operation_counter[unit_name]), ctrl]))
-        operation_counter[unit_name] += 1
+        nodes[k] = ''.join(filter(None, [unit_name, '-', str(self.operation_counter[unit_name]), ctrl]))
+        self.operation_counter[unit_name] += 1
 
     nodes_id = json_extract(data['nodes'], 'id')
     from_id = json_extract(data, 'fromId')
@@ -78,4 +78,11 @@ def read_ctrl_pattern(operation_counter, pattern):
         elif v == 'end_node':
             end_nodes.append(k)
 
-    return nodes, edges, start_node, end_nodes
+    self.nodes.extend(nodes)
+    if 'heatexchanger' in pattern:
+        self.edges.extend([((node, start_node), {'in_connect': ['1_in'], 'out_connect': []})])
+    else:
+        self.edges.extend([((node, start_node), {'in_connect': [], 'out_connect': []})])
+    self.edges.extend(edges)
+
+    return end_nodes

@@ -57,7 +57,7 @@
       "id": "n0",
       "position": {
         "x": 75,
-        "y": 273.45921633916055
+        "y": 50
       },
       "caption": "HeatExchanger-x",
       "labels": [],
@@ -70,7 +70,7 @@
       "id": "n1",
       "position": {
         "x": 597.5,
-        "y": 273.45921633916055
+        "y": 50
       },
       "caption": "Control-x/TC",
       "labels": [],
@@ -83,19 +83,19 @@
   "relationships": [
     {
       "id": "n0",
-      "fromId": "n0",
-      "toId": "n1",
-      "type": "",
+      "type": "1_out",
+      "style": {},
       "properties": {},
-      "style": {}
+      "fromId": "n0",
+      "toId": "n1"
     },
     {
       "id": "n1",
-      "type": "not_next_unitop",
-      "style": {},
-      "properties": {},
       "fromId": "n1",
-      "toId": "n0"
+      "toId": "n0",
+      "type": "not_next_unitop",
+      "properties": {},
+      "style": {}
     }
   ]
 }

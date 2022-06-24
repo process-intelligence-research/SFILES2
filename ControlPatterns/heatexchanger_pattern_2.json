@@ -56,103 +56,103 @@
     {
       "id": "n0",
       "position": {
-        "x": -116,
-        "y": -2.694222958124177e-14
+        "x": 75,
+        "y": 273.45921633916055
       },
       "caption": "HeatExchanger-x",
-      "style": {},
       "labels": [],
       "properties": {
         "nodetype": "start_node"
-      }
+      },
+      "style": {}
+    },
+    {
+      "id": "n1",
+      "position": {
+        "x": 597.5,
+        "y": 273.45921633916055
+      },
+      "caption": "Control-x/TC",
+      "labels": [],
+      "properties": {
+        "nodetype": "end_node"
+      },
+      "style": {}
     },
     {
       "id": "n2",
       "position": {
-        "x": 406.5,
-        "y": -2.694222958124177e-14
+        "x": 75,
+        "y": 50
       },
-      "caption": "Control-x/TC",
-      "style": {},
+      "caption": "RawMaterial-x",
       "labels": [],
-      "properties": {
-        "nodetype": "end_node"
-      }
+      "properties": {},
+      "style": {}
     },
     {
       "id": "n3",
       "position": {
-        "x": -116,
-        "y": -223.45921633916058
+        "x": 75,
+        "y": 496.9184326783211
       },
-      "caption": "RawMaterial-x",
-      "style": {},
+      "caption": "Valve-x",
       "labels": [],
-      "properties": {}
+      "properties": {},
+      "style": {}
     },
     {
       "id": "n4",
       "position": {
-        "x": -116,
-        "y": 223.45921633916052
-      },
-      "caption": "Valve-x",
-      "style": {},
-      "labels": [],
-      "properties": {}
-    },
-    {
-      "id": "n5",
-      "position": {
-        "x": -115.99999730260167,
-        "y": 446.91843267832104
+        "x": 75.00000269739833,
+        "y": 720.3776490174816
       },
       "caption": "OutputProduct-x",
-      "style": {},
       "labels": [],
-      "properties": {}
+      "properties": {},
+      "style": {}
     }
   ],
   "relationships": [
     {
-      "id": "n4",
-      "type": "",
+      "id": "n0",
+      "type": "1_out",
       "style": {},
       "properties": {},
       "fromId": "n0",
-      "toId": "n2"
+      "toId": "n1"
     },
     {
-      "id": "n5",
-      "type": "",
-      "style": {},
-      "properties": {},
-      "fromId": "n3",
-      "toId": "n0"
-    },
-    {
-      "id": "n6",
-      "type": "",
-      "style": {},
-      "properties": {},
-      "fromId": "n0",
-      "toId": "n4"
-    },
-    {
-      "id": "n7",
-      "type": "",
-      "style": {},
-      "properties": {},
-      "fromId": "n4",
-      "toId": "n5"
-    },
-    {
-      "id": "n8",
-      "type": "not_next_unitop",
+      "id": "n1",
+      "type": "2_in",
       "style": {},
       "properties": {},
       "fromId": "n2",
-      "toId": "n4"
+      "toId": "n0"
+    },
+    {
+      "id": "n2",
+      "type": "2_out",
+      "style": {},
+      "properties": {},
+      "fromId": "n0",
+      "toId": "n3"
+    },
+    {
+      "id": "n3",
+      "fromId": "n3",
+      "toId": "n4",
+      "type": "",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n4",
+      "fromId": "n1",
+      "toId": "n3",
+      "type": "not_next_unitop",
+      "properties": {},
+      "style": {}
     }
   ]
 }

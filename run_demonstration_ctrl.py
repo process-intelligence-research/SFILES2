@@ -84,6 +84,14 @@ class TestSFILESctrl(unittest.TestCase):
                  ('v-2', 'IO-3'), ('C-1/LC', 'v-2', {'tags': {'signal': ['not_next_unitop']}})]
         self.SFILESctrl(test_case, edges)
 
+    def test_case_HX_4(self):
+        # HX_4)
+        test_case = 'HX_4'
+        edges = [('IO-1', 'C-1/TC'), ('C-1/TC', 'hex-1/1'), ('hex-1/1', 'IO-2'), ('IO-3', 'C-2/FC'),
+                 ('C-2/FC', 'v-1', {'tags': {'signal': ['next_unitop']}}), ('v-1', 'hex-1/2'), ('hex-1/2', 'IO-4'),
+                 ('C-1/TC', 'C-2/FC', {'tags': {'signal': ['not_next_unitop']}})]
+        self.SFILESctrl(test_case, edges)
+
     def test_case_Umpumpanalge(self):
         # Umpumpanlage
         test_case = 'Umpumpanlage'
