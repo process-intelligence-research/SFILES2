@@ -108,9 +108,9 @@
         "y": 444.618587655232
       },
       "caption": "Control-x/PC",
-      "style": {},
       "labels": [],
-      "properties": {}
+      "properties": {},
+      "style": {}
     },
     {
       "id": "n5",
@@ -119,9 +119,9 @@
         "y": 444.618587655232
       },
       "caption": "Valve-x",
-      "style": {},
       "labels": [],
-      "properties": {}
+      "properties": {},
+      "style": {}
     },
     {
       "id": "n6",
@@ -130,19 +130,19 @@
         "y": 444.618587655232
       },
       "caption": "OutputProduct-x",
-      "style": {},
       "labels": [],
-      "properties": {}
+      "properties": {},
+      "style": {}
     }
   ],
   "relationships": [
     {
       "id": "n0",
-      "fromId": "n0",
-      "toId": "n1",
-      "type": "",
+      "type": "bout",
+      "style": {},
       "properties": {},
-      "style": {}
+      "fromId": "n0",
+      "toId": "n1"
     },
     {
       "id": "n1",
@@ -170,7 +170,7 @@
     },
     {
       "id": "n4",
-      "type": "",
+      "type": "tout",
       "style": {},
       "properties": {},
       "fromId": "n0",
@@ -178,27 +178,27 @@
     },
     {
       "id": "n5",
-      "type": "next_unitop",
-      "style": {},
-      "properties": {},
       "fromId": "n4",
-      "toId": "n5"
+      "toId": "n5",
+      "type": "next_unitop",
+      "properties": {},
+      "style": {}
     },
     {
       "id": "n6",
-      "type": "",
-      "style": {},
-      "properties": {},
       "fromId": "n5",
-      "toId": "n6"
+      "toId": "n6",
+      "type": "",
+      "properties": {},
+      "style": {}
     },
     {
       "id": "n7",
-      "type": "not_next_unitop",
-      "style": {},
-      "properties": {},
       "fromId": "n2",
-      "toId": "n0"
+      "toId": "n0",
+      "type": "not_next_unitop",
+      "properties": {},
+      "style": {}
     }
   ]
 }

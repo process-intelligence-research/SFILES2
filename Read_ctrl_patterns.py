@@ -90,6 +90,9 @@ def read_ctrl_pattern(self, pattern, last_node):
             self.edges.extend([((last_node[k], start_node[k]), {'in_connect': ['1_in'], 'out_connect': []})])
         elif 'mixing' in pattern:
             self.edges.extend([((last_node[-k], start_node[k]), {'in_connect': ['1_in'], 'out_connect': []})])
+        #elif 'add_reactor_feed' in pattern:
+        #    self.edges.extend([((end_nodes[k], last_node[0]), {'in_connect': ['1_in'], 'out_connect': []})])
+        #    end_nodes = last_node
         else:
             self.edges.extend([((last_node[k], start_node[k]), {'in_connect': [], 'out_connect': []})])
 

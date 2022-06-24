@@ -54,55 +54,40 @@
   },
   "nodes": [
     {
-      "id": "n7",
+      "id": "n1",
       "position": {
-        "x": -592.4416162610669,
-        "y": 234
-      },
-      "caption": "RawMaterial-x",
-      "style": {},
-      "labels": ["start_node"],
-      "properties": {}
-    },
-    {
-      "id": "n8",
-      "position": {
-        "x": -326.5,
-        "y": 234
+        "x": 340.9416162610669,
+        "y": 50.00000000000003
       },
       "caption": "Control-x/FC",
-      "style": {},
-      "labels": [],
-      "properties": {}
+      "labels": [
+        "start_node"
+      ],
+      "properties": {},
+      "style": {}
     },
     {
-      "id": "n9",
+      "id": "n2",
       "position": {
-        "x": -60.55838373893312,
-        "y": 233.99999999999997
+        "x": 606.8832325221338,
+        "y": 50
       },
       "caption": "Valve-x",
-      "style": {},
-      "labels": ["end_node"],
-      "properties": {}
+      "labels": [
+        "end_node"
+      ],
+      "properties": {},
+      "style": {}
     }
   ],
   "relationships": [
     {
-      "id": "n7",
-      "type": "",
-      "style": {},
-      "properties": {},
-      "fromId": "n7",
-      "toId": "n8"
-    },
-    {
-      "id": "n8",
+      "id": "n1",
+      "fromId": "n1",
+      "toId": "n2",
       "type": "next_unitop",
-      "style": {},
       "properties": {},
-      "fromId": "n8",
-      "toId": "n9"
+      "style": {}
     }
   ]
 }

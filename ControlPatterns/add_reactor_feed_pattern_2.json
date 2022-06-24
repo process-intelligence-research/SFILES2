@@ -54,120 +54,126 @@
   },
   "nodes": [
     {
-      "id": "n7",
+      "id": "n0",
       "position": {
-        "x": -592.4416162610669,
-        "y": 234
+        "x": 75,
+        "y": 50.00000000000003
       },
       "caption": "RawMaterial-x",
-      "style": {},
-      "labels": ["start_node"],
-      "properties": {}
+      "labels": [],
+      "properties": {},
+      "style": {}
     },
     {
-      "id": "n8",
+      "id": "n1",
       "position": {
-        "x": -326.5,
-        "y": 234
+        "x": 340.9416162610669,
+        "y": 50.00000000000003
       },
       "caption": "Control-x/FT",
-      "style": {},
       "labels": [],
-      "properties": {}
+      "properties": {},
+      "style": {}
     },
     {
-      "id": "n9",
+      "id": "n2",
       "position": {
-        "x": -60.55838373893312,
-        "y": 233.99999999999997
+        "x": 606.8832325221338,
+        "y": 50
       },
       "caption": "Valve-x",
-      "style": {},
-      "labels": ["end_node"],
-      "properties": {}
-    },
-    {
-      "id": "n10",
-      "position": {
-        "x": -592.4416162610667,
-        "y": 518.3901204705639
-      },
-      "caption": "Control-x/FT",
-      "labels": ["start_node"],
+      "labels": [
+        "end_node"
+      ],
       "properties": {},
       "style": {}
     },
     {
-      "id": "n11",
+      "id": "n3",
       "position": {
-        "x": -326.4999999999998,
-        "y": 518.3901204705639
+        "x": 75.00000000000023,
+        "y": 334.39012047056394
       },
       "caption": "Control-x/FT",
-      "labels": ["end_node"],
+      "labels": [
+        "start_node"
+      ],
       "properties": {},
       "style": {}
     },
     {
-      "id": "n13",
+      "id": "n4",
       "position": {
-        "x": -182.2579385131496,
-        "y": 374.1480589837138
+        "x": 340.9416162610671,
+        "y": 334.39012047056394
+      },
+      "caption": "Control-x/FT",
+      "labels": [
+        "end_node"
+      ],
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n5",
+      "position": {
+        "x": 485.1836777479173,
+        "y": 190.1480589837138
       },
       "caption": "Control-x/FFC",
-      "style": {},
       "labels": [],
-      "properties": {}
+      "properties": {},
+      "style": {}
     }
   ],
   "relationships": [
     {
-      "id": "n7",
-      "type": "",
-      "style": {},
-      "properties": {},
-      "fromId": "n7",
-      "toId": "n8"
-    },
-    {
-      "id": "n8",
-      "type": "next_unitop",
-      "style": {},
-      "properties": {},
-      "fromId": "n8",
-      "toId": "n9"
-    },
-    {
-      "id": "n9",
-      "fromId": "n10",
-      "toId": "n11",
+      "id": "n0",
+      "fromId": "n0",
+      "toId": "n1",
       "type": "",
       "properties": {},
       "style": {}
     },
     {
-      "id": "n11",
-      "type": "not_next_unitop",
-      "style": {},
+      "id": "n1",
+      "fromId": "n1",
+      "toId": "n2",
+      "type": "",
       "properties": {},
-      "fromId": "n11",
-      "toId": "n13"
+      "style": {}
     },
     {
-      "id": "n12",
-      "type": "not_next_unitop",
-      "style": {},
+      "id": "n2",
+      "fromId": "n3",
+      "toId": "n4",
+      "type": "",
       "properties": {},
-      "fromId": "n8",
-      "toId": "n13"
+      "style": {}
     },
     {
-      "id": "n13",
+      "id": "n3",
+      "fromId": "n4",
+      "toId": "n5",
       "type": "not_next_unitop",
-      "style": {},
       "properties": {},
-      "fromId": "n13",
-      "toId": "n9"
+      "style": {}
+    },
+    {
+      "id": "n4",
+      "fromId": "n1",
+      "toId": "n5",
+      "type": "not_next_unitop",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n5",
+      "fromId": "n5",
+      "toId": "n2",
+      "type": "not_next_unitop",
+      "properties": {},
+      "style": {}
     }
   ]
 }
