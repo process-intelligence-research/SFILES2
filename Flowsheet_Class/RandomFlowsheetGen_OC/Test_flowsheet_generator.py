@@ -27,6 +27,9 @@ class FlowsheetTests(unittest.TestCase):
         all_sfiles2 = []
         all_sfiles3 = []
         all_sfiles4 = []
+        node_nr = []
+        edge_nr = []
+
         for key, ob in flowsheets.items():
             #print(key)
             ob.create_random_flowsheet()
@@ -39,6 +42,13 @@ class FlowsheetTests(unittest.TestCase):
             sfiles_2=ob.sfiles
             all_sfiles2.append(sfiles_2)
             all_sfiles4.append(re.sub(r'\{.*?\}', '',sfiles_2))
+            node_nr.append(len(list(ob.state.nodes)))
+            edge_nr.append(len(list(ob.state.edges)))
+
+        avg_nr_nodes = sum(node_nr) / len(node_nr)
+        avg_nr_edges = sum(edge_nr) / len(edge_nr)
+        print("The average number of nodes is: %.0f" % avg_nr_nodes)
+        print("The average number of edges is: %.0f" % avg_nr_edges)
         with open(r'C:\Users\hirtr\OneDrive - TUM\Dokumente\PI Research\SFILES2_0\new.txt', 'w') as fp:
             for item in all_sfiles1:
                 # write each item on a new line

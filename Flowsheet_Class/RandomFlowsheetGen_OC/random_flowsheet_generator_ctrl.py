@@ -111,7 +111,7 @@ class Generate_flowsheet:
                         if _next_op_cat == 'TemperatureChange' and self.include_controls:
                             _current_node = self.temperature_ctrl_pattern(_current_node)
                         elif _next_op_cat == 'PressureChange' and self.include_controls:
-                            _current_node = self.pressure_ctrl_pattern(_current_node, _next_op)
+                            _current_node = self.pressure_ctrl_pattern(_current_node)
                         else:
                             self.operation_counter[_next_op] += 1
                             self.nodes.append(_next_op_name)
@@ -135,7 +135,7 @@ class Generate_flowsheet:
             #_next_op_cat = random.choices(['Purification', 'Reaction', 'ThermalSeparation', 'CountercurrentSeparation',
             #                               'Filtration', 'CentrifugalSeparation'],
             #                              [0.5, 0.125, 0.2, 0.125, 0.025, 0.025])[0]
-            _next_op_cat = random.choices(['Purification', 'Reaction', 'ThermalSeparation'], [0.7, 0.1, 0.2])[0]
+            _next_op_cat = random.choices(['Purification', 'Reaction', 'ThermalSeparation'], [0.6, 0.1, 0.3])[0]
 
         if _next_op_cat == 'Reaction':
             self.reaction(connect_info)
@@ -304,10 +304,17 @@ class Generate_flowsheet:
                                            {'in_connect': connect_info, 'out_connect': []}))
                     else:
                         # detergent preprocessing with node and edge for instance hex in Feed-hex-sep sequence
-                        _next_op_name, _next_op = self.select_unit_name(_next_op_cat)
-                        self.nodes.append(_next_op_name)
-                        self.edges.append(((_current_node, _next_op_name),
-                                           {'in_connect': connect_info, 'out_connect': []}))
+                        if _next_op_cat == 'TemperatureChange' and self.include_controls:
+                            _current_node = self.temperature_ctrl_pattern(_current_node)
+                        elif _next_op_cat == 'PressureChange' and self.include_controls:
+                            _current_node = self.pressure_ctrl_pattern(_current_node)
+                        elif _next_op_cat == 'Storage' and self.include_controls:
+                            _current_node = self.storage_ctrl_pattern(_current_node)
+                        else:
+                            _next_op_name, _next_op = self.select_unit_name(_next_op_cat)
+                            self.nodes.append(_next_op_name)
+                            self.edges.append(((_current_node, _next_op_name),
+                                               {'in_connect': connect_info, 'out_connect': []}))
                 connect_info = []  # reset connect_info
                 # reset the current node
                 _current_node = _next_op_name
@@ -606,6 +613,10 @@ class Generate_flowsheet:
             # before the last node and edge is created, we go to special operations
             if _next_op_cat == 'OutputProduct':
                 break
+            elif _next_op_cat == 'TemperatureChange' and self.include_controls:
+                _current_node = self.temperature_ctrl_pattern(_current_node)
+            elif _next_op_cat == 'PressureChange' and self.include_controls:
+                _current_node = self.pressure_ctrl_pattern(_current_node)
             else:
                 self.nodes.append(_next_op_name)
                 self.edges.append(((_current_node, _next_op_name), {'in_connect': connect_info, 'out_connect': []}))
@@ -837,21 +848,12 @@ class Generate_flowsheet:
         end_nodes = read_ctrl_pattern(self, pattern, node)
         return end_nodes[0]
 
-    def pressure_ctrl_pattern(self, node, _next_op):
+    def pressure_ctrl_pattern(self, node):
 
-        '''if _next_op == 'Pump':
-            pattern = random.choices(['pump_pattern_1', 'pump_pattern_2', 'pump_pattern_3'], [0.2, 0.5, 0.3])[0]
-            end_nodes = read_ctrl_pattern(self, pattern, node)
-            return end_nodes[0]
-
-        else:
-            pressure_ctrl_patter = random.choices(['compressor_pattern_1', 'compressor_pattern_2'], [0.4, 0.6])[0]
-            # TODO: Add compressor control pattern'''
         pattern = random.choices(['pump_pattern_1', 'pump_pattern_2', 'pump_pattern_3', 'compressor_pattern_1',
                                   'compressor_pattern_2'], [0.1, 0.3, 0.1, 0.2, 0.3])[0]
         end_nodes = read_ctrl_pattern(self, pattern, node)
         return end_nodes[0]
-
 
     def rectification_ctrl_pattern(self, node):
 
@@ -871,5 +873,10 @@ class Generate_flowsheet:
 
     def add_reactant_ctrl_pattern(self, node):
         pattern = random.choices(['add_reactor_feed_pattern_1', 'add_reactor_feed_pattern_2'], [0.8, 0.2])[0]
+        end_nodes = read_ctrl_pattern(self, pattern, node)
+        return end_nodes
+
+    def storage_ctrl_pattern(self, node):
+        pattern = random.choices(['storage_pattern_1', 'storage_pattern_2'], [0.8, 0.2])[0]
         end_nodes = read_ctrl_pattern(self, pattern, node)
         return end_nodes
