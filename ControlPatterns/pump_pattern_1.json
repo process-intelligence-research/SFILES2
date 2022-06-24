@@ -61,9 +61,8 @@
       },
       "caption": "MixingUnit-x",
       "style": {},
-      "labels": [],
+      "labels": ["start_node"],
       "properties": {
-        "nodetype": "start_node"
       }
     },
     {
@@ -107,9 +106,8 @@
       },
       "caption": "Control-x/FC",
       "style": {},
-      "labels": [],
+      "labels": ["end_node"],
       "properties": {
-        "nodetype": "end_node"
       }
     },
     {

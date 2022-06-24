@@ -24,7 +24,7 @@ def json_extract(obj, key):
     return values
 
 
-def read_ctrl_pattern(self, pattern, node):
+def read_ctrl_pattern(self, pattern, last_node):
     # Load patterns from file.
     current_path = os.path.dirname(__file__)
     rel_path = ''.join(['ControlPatterns\\', pattern, '.json'])
@@ -66,23 +66,32 @@ def read_ctrl_pattern(self, pattern, node):
     # TODO: Include automatic recognition of start and end nodes
     nodetype = {}
     for k in range(len(data['nodes'])):
-        if data['nodes'][k]['properties']:
-            nodetype.update({data['nodes'][k]['id']: data['nodes'][k]['properties']['nodetype']})
+        if data['nodes'][k]['labels']:
+            nodetype.update({data['nodes'][k]['id']: data['nodes'][k]['labels']})
     nodetype = {mapping[k]: v for k, v in nodetype.items()}
 
     end_nodes = []
-    start_node = None
+    start_node = []
     for k, v in nodetype.items():
-        if v == 'start_node':
-            start_node = k
-        elif v == 'end_node':
-            end_nodes.append(k)
+        for m in v:
+            if m == 'start_node':
+                start_node.append(k)
+            elif m == 'end_node':
+                end_nodes.append(k)
+
+    if isinstance(last_node, str):
+        last_node = [last_node]
+
+    if len(start_node) != len(last_node):
+        print('Error. Too many start nodes!')
+
+    for k in range(len(start_node)):
+        if 'heatexchanger' in pattern:
+            self.edges.extend([((last_node[k], start_node[k]), {'in_connect': ['1_in'], 'out_connect': []})])
+        else:
+            self.edges.extend([((last_node[k], start_node[k]), {'in_connect': [], 'out_connect': []})])
 
     self.nodes.extend(nodes)
-    if 'heatexchanger' in pattern:
-        self.edges.extend([((node, start_node), {'in_connect': ['1_in'], 'out_connect': []})])
-    else:
-        self.edges.extend([((node, start_node), {'in_connect': [], 'out_connect': []})])
     self.edges.extend(edges)
 
     return end_nodes

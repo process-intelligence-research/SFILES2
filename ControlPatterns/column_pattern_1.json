@@ -60,10 +60,8 @@
         "y": 68
       },
       "caption": "Control-x/FC",
-      "labels": [],
-      "properties": {
-        "nodetype": "start_node"
-      },
+      "labels": ["start_node"],
+      "properties": {},
       "style": {}
     },
     {
@@ -271,10 +269,8 @@
         "y": -299.49948548262313
       },
       "caption": "Valve-x",
-      "labels": [],
-      "properties": {
-        "nodetype": "end_node"
-      },
+      "labels": ["end_node"],
+      "properties": {},
       "style": {}
     },
     {
@@ -284,9 +280,8 @@
         "y": 371.41507718150075
       },
       "caption": "Valve-x",
-      "labels": [],
+      "labels": ["end_node"],
       "properties": {
-        "nodetype": "end_node"
       },
       "style": {}
     },

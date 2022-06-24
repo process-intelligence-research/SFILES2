@@ -61,10 +61,8 @@
       },
       "caption": "RawMaterial-x",
       "style": {},
-      "labels": [],
-      "properties": {
-        "nodetype": "start_node"
-      }
+      "labels": ["start_node"],
+      "properties": {}
     },
     {
       "id": "n8",
@@ -85,10 +83,8 @@
       },
       "caption": "Valve-x",
       "style": {},
-      "labels": [],
-      "properties": {
-        "nodetype": "end_node"
-      }
+      "labels": ["end_node"],
+      "properties": {}
     }
   ],
   "relationships": [

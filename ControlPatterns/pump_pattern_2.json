@@ -61,9 +61,8 @@
       },
       "caption": "Pump-x",
       "style": {},
-      "labels": [],
+      "labels": ["start_node"],
       "properties": {
-        "nodetype": "start_node"
       }
     },
     {
@@ -96,9 +95,8 @@
       },
       "caption": "Valve-x",
       "style": {},
-      "labels": [],
+      "labels": ["end_node"],
       "properties": {
-        "nodetype": "end_node"
       }
     },
     {

@@ -801,41 +801,11 @@ class Generate_flowsheet:
     def mixing_ctrl_pattern(self, node1, node2, mixing):
         # TODO: It has to be checked if raw material stream includes already FC through other unitop.
         #  Material stream cannot be controlled by two or more FC!
-        mixing_pattern = random.choices(['Pattern_1', 'Pattern_2'], [0.7, 0.3])[0]
-
-        if mixing_pattern == 'Pattern_1':
-            ctrl_1 = 'Control' + '-' + str(self.operation_counter['Control']) + '/FC'
-            self.operation_counter['Control'] += 1
-            ctrl_2 = 'Control' + '-' + str(self.operation_counter['Control']) + '/FC'
-            self.operation_counter['Control'] += 1
-            valve_1 = 'Valve' + '-' + str(self.operation_counter['Valve'])
-            self.operation_counter['Valve'] += 1
-            valve_2 = 'Valve' + '-' + str(self.operation_counter['Valve'])
-            self.operation_counter['Valve'] += 1
-
-            self.nodes.extend([ctrl_1, ctrl_2, valve_1, valve_2])
-            self.edges.extend([((node1, ctrl_1), {'in_connect': [], 'out_connect': []}),
-                               ((ctrl_1, valve_1), {'in_connect': ['next_unitop'], 'out_connect': []}),
-                               ((valve_1, mixing), {'in_connect': [], 'out_connect': []}),
-                               ((node2, ctrl_2), {'in_connect': [], 'out_connect': []}),
-                               ((ctrl_2, valve_2), {'in_connect': ['next_unitop'], 'out_connect': []}),
-                               ((valve_2, mixing), {'in_connect': [], 'out_connect': []})])
-
-        elif mixing_pattern == 'Pattern_2':
-            ctrl_1 = 'Control' + '-' + str(self.operation_counter['Control']) + '/FT'
-            self.operation_counter['Control'] += 1
-            ctrl_2 = 'Control' + '-' + str(self.operation_counter['Control']) + '/FFC'
-            self.operation_counter['Control'] += 1
-            valve_1 = 'Valve' + '-' + str(self.operation_counter['Valve'])
-            self.operation_counter['Valve'] += 1
-
-            self.nodes.extend([ctrl_1, ctrl_2, valve_1])
-            self.edges.extend([((node1, ctrl_1), {'in_connect': [], 'out_connect': []}),
-                               ((ctrl_1, mixing), {'in_connect': [], 'out_connect': []}),
-                               ((node2, ctrl_2), {'in_connect': [], 'out_connect': []}),
-                               ((ctrl_2, valve_1), {'in_connect': ['next_unitop'], 'out_connect': []}),
-                               ((valve_1, mixing), {'in_connect': [], 'out_connect': []}),
-                               ((ctrl_1, ctrl_2), {'in_connect': ['not_next_unitop'], 'out_connect': []})])
+        node = [node1, node2]
+        pattern = random.choices(['mixing_pattern_1', 'mixing_pattern_2'], [0.7, 0.3])[0]
+        end_nodes = read_ctrl_pattern(self, pattern, node)
+        self.edges.extend([((end_nodes[0], mixing), {'in_connect': [], 'out_connect': []}),
+                           ((end_nodes[1], mixing), {'in_connect': [], 'out_connect': []})])
 
     def temperature_ctrl_pattern(self, node):
 

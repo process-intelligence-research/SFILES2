@@ -60,10 +60,8 @@
         "y": 50
       },
       "caption": "HeatExchanger-x",
-      "labels": [],
-      "properties": {
-        "nodetype": "start_node"
-      },
+      "labels": ["start_node"],
+      "properties": {},
       "style": {}
     },
     {
@@ -73,10 +71,8 @@
         "y": 50
       },
       "caption": "Control-x/TC",
-      "labels": [],
-      "properties": {
-        "nodetype": "end_node"
-      },
+      "labels": ["end_node"],
+      "properties": {},
       "style": {}
     }
   ],

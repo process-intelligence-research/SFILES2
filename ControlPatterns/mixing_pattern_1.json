@@ -56,61 +56,44 @@
     {
       "id": "n0",
       "position": {
-        "x": -116,
-        "y": 0
+        "x": 75,
+        "y": 50.00000000000003
       },
       "caption": "Control-x/FC",
-      "style": {},
-      "labels": [],
-      "properties": {
-        "nodetype": "start_node"
-      }
+      "labels": ["start_node"],
+      "properties": {},
+      "style": {}
     },
     {
       "id": "n1",
       "position": {
-        "x": 186.5,
-        "y": 0
+        "x": 377.5,
+        "y": 50.00000000000003
       },
       "caption": "Valve-x",
-      "style": {},
-      "labels": [],
-      "properties": {}
-    },
-    {
-      "id": "n2",
-      "position": {
-        "x": 406.5,
-        "y": -2.694222958124177e-14
-      },
-      "caption": "MixingUnit-x",
-      "style": {},
-      "labels": [],
-      "properties": {
-        "nodetype": "end_node"
-      }
+      "labels": ["end_node"],
+      "properties": {},
+      "style": {}
     },
     {
       "id": "n3",
       "position": {
-        "x": -116,
-        "y": 189.99999999999997
+        "x": 75,
+        "y": 240
       },
       "caption": "Control-x/FC",
-      "labels": [],
-      "properties": {
-        "nodetype": "start_node"
-      },
+      "labels": ["start_node"],
+      "properties": {},
       "style": {}
     },
     {
       "id": "n4",
       "position": {
-        "x": 186.5,
-        "y": 189.99999999999997
+        "x": 377.5,
+        "y": 240
       },
       "caption": "Valve-x",
-      "labels": [],
+      "labels": ["end_node"],
       "properties": {},
       "style": {}
     }
@@ -118,19 +101,11 @@
   "relationships": [
     {
       "id": "n0",
-      "type": "next_unitop",
-      "style": {},
-      "properties": {},
       "fromId": "n0",
-      "toId": "n1"
-    },
-    {
-      "id": "n1",
-      "type": "",
-      "style": {},
+      "toId": "n1",
+      "type": "next_unitop",
       "properties": {},
-      "fromId": "n1",
-      "toId": "n2"
+      "style": {}
     },
     {
       "id": "n2",
@@ -139,14 +114,6 @@
       "type": "next_unitop",
       "properties": {},
       "style": {}
-    },
-    {
-      "id": "n3",
-      "type": "",
-      "style": {},
-      "properties": {},
-      "fromId": "n4",
-      "toId": "n2"
     }
   ]
 }

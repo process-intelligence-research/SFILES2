@@ -56,86 +56,66 @@
     {
       "id": "n0",
       "position": {
-        "x": -116,
-        "y": -2.694222958124177e-14
+        "x": 75,
+        "y": 50
       },
       "caption": "Control-x/FT",
-      "style": {},
-      "labels": [],
-      "properties": {
-        "nodetype": "start_node"
-      }
-    },
-    {
-      "id": "n2",
-      "position": {
-        "x": 406.5,
-        "y": -2.694222958124177e-14
-      },
-      "caption": "MixingUnit-x",
-      "style": {},
-      "labels": [],
-      "properties": {
-        "nodetype": "end_node"
-      }
-    },
-    {
-      "id": "n3",
-      "position": {
-        "x": -116,
-        "y": 189.99999999999997
-      },
-      "caption": "Control-x/FFC",
-      "labels": [],
+      "labels": [
+        "start_node",
+        "end_node"
+      ],
       "properties": {
         "nodetype": "start_node"
       },
       "style": {}
     },
     {
-      "id": "n4",
+      "id": "n2",
       "position": {
-        "x": 186.5,
-        "y": 189.99999999999997
+        "x": 75,
+        "y": 240
+      },
+      "caption": "Control-x/FFC",
+      "labels": [
+        "start_node"
+      ],
+      "properties": {
+        "nodetype": "start_node"
+      },
+      "style": {}
+    },
+    {
+      "id": "n3",
+      "position": {
+        "x": 377.5,
+        "y": 240
       },
       "caption": "Valve-x",
-      "labels": [],
-      "properties": {},
+      "labels": [
+        "end_node"
+      ],
+      "properties": {
+        "nodetype": "end_node"
+      },
       "style": {}
     }
   ],
   "relationships": [
     {
-      "id": "n2",
-      "fromId": "n3",
-      "toId": "n4",
+      "id": "n0",
+      "fromId": "n2",
+      "toId": "n3",
       "type": "next_unitop",
       "properties": {},
       "style": {}
     },
     {
       "id": "n3",
-      "type": "",
-      "style": {},
-      "properties": {},
-      "fromId": "n4",
-      "toId": "n2"
-    },
-    {
-      "id": "n4",
-      "type": "",
-      "style": {},
-      "properties": {},
       "fromId": "n0",
-      "toId": "n2"
-    },
-    {
-      "id": "n5",
+      "toId": "n2",
       "type": "not_next_unitop",
-      "style": {},
       "properties": {},
-      "fromId": "n0",
-      "toId": "n3"
+      "style": {}
     }
   ]
 }

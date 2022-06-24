@@ -54,67 +54,82 @@
   },
   "nodes": [
     {
-      "id": "n7",
+      "id": "n0",
       "position": {
-        "x": -592.4416162610669,
-        "y": 234
+        "x": 180.44161626106694,
+        "y": 277.23717531046395
       },
-      "caption": "RawMaterial-x",
-      "style": {},
-      "labels": ["start_node"],
-      "properties": {}
+      "caption": "ChemicalReactor-x",
+      "labels": [
+        "start_node"
+      ],
+      "properties": {},
+      "style": {}
     },
     {
-      "id": "n8",
+      "id": "n1",
       "position": {
-        "x": -326.5,
-        "y": 234
+        "x": 422.94161626106694,
+        "y": 277.23717531046395
       },
-      "caption": "Control-x/FT",
+      "caption": "Valve-x",
+      "labels": [
+        "end_node"
+      ],
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n2",
+      "position": {
+        "x": 75,
+        "y": 58.8606299575944
+      },
+      "caption": "Control-x/TC",
+      "labels": [],
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n3",
+      "position": {
+        "x": 265.1146117018889,
+        "y": 50
+      },
+      "caption": "Control-x/LC",
+      "labels": [],
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n4",
+      "position": {
+        "x": 180.44161626106694,
+        "y": 444.618587655232
+      },
+      "caption": "Control-x/PC",
       "style": {},
       "labels": [],
       "properties": {}
     },
     {
-      "id": "n9",
+      "id": "n5",
       "position": {
-        "x": -60.55838373893312,
-        "y": 233.99999999999997
+        "x": 422.94161626106694,
+        "y": 444.618587655232
       },
       "caption": "Valve-x",
       "style": {},
-      "labels": ["end_node"],
+      "labels": [],
       "properties": {}
     },
     {
-      "id": "n10",
+      "id": "n6",
       "position": {
-        "x": -592.4416162610667,
-        "y": 518.3901204705639
+        "x": 621.4708081305334,
+        "y": 444.618587655232
       },
-      "caption": "Control-x/FT",
-      "labels": ["start_node"],
-      "properties": {},
-      "style": {}
-    },
-    {
-      "id": "n11",
-      "position": {
-        "x": -326.4999999999998,
-        "y": 518.3901204705639
-      },
-      "caption": "Control-x/FT",
-      "labels": ["end_node"],
-      "properties": {},
-      "style": {}
-    },
-    {
-      "id": "n13",
-      "position": {
-        "x": -182.2579385131496,
-        "y": 374.1480589837138
-      },
-      "caption": "Control-x/FFC",
+      "caption": "OutputProduct-x",
       "style": {},
       "labels": [],
       "properties": {}
@@ -122,52 +137,68 @@
   ],
   "relationships": [
     {
-      "id": "n7",
-      "type": "",
-      "style": {},
-      "properties": {},
-      "fromId": "n7",
-      "toId": "n8"
-    },
-    {
-      "id": "n8",
-      "type": "next_unitop",
-      "style": {},
-      "properties": {},
-      "fromId": "n8",
-      "toId": "n9"
-    },
-    {
-      "id": "n9",
-      "fromId": "n10",
-      "toId": "n11",
+      "id": "n0",
+      "fromId": "n0",
+      "toId": "n1",
       "type": "",
       "properties": {},
       "style": {}
     },
     {
-      "id": "n11",
-      "type": "not_next_unitop",
-      "style": {},
+      "id": "n1",
+      "fromId": "n0",
+      "toId": "n2",
+      "type": "",
       "properties": {},
-      "fromId": "n11",
-      "toId": "n13"
+      "style": {}
     },
     {
-      "id": "n12",
-      "type": "not_next_unitop",
-      "style": {},
+      "id": "n2",
+      "fromId": "n0",
+      "toId": "n3",
+      "type": "",
       "properties": {},
-      "fromId": "n8",
-      "toId": "n13"
+      "style": {}
     },
     {
-      "id": "n13",
+      "id": "n3",
+      "fromId": "n3",
+      "toId": "n1",
+      "type": "not_next_unitop",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n4",
+      "type": "",
+      "style": {},
+      "properties": {},
+      "fromId": "n0",
+      "toId": "n4"
+    },
+    {
+      "id": "n5",
+      "type": "next_unitop",
+      "style": {},
+      "properties": {},
+      "fromId": "n4",
+      "toId": "n5"
+    },
+    {
+      "id": "n6",
+      "type": "",
+      "style": {},
+      "properties": {},
+      "fromId": "n5",
+      "toId": "n6"
+    },
+    {
+      "id": "n7",
       "type": "not_next_unitop",
       "style": {},
       "properties": {},
-      "fromId": "n13",
-      "toId": "n9"
+      "fromId": "n2",
+      "toId": "n0"
     }
   ]
 }
