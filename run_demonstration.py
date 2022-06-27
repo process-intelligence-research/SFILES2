@@ -11,7 +11,7 @@ new = Flowsheet()
 new.state = H
 new.convert_to_sfiles()
 s = new.sfiles
-new.create_from_sfiles(s, override_nx=True)
+new.create_from_sfiles(s, overwrite_nx=True)
 new.convert_to_sfiles()
 s2=new.sfiles
 if s == s2:
@@ -30,7 +30,7 @@ new = Flowsheet()
 new.state = H
 new.convert_to_sfiles()
 s = new.sfiles
-new.create_from_sfiles(s, override_nx=True)
+new.create_from_sfiles(s, overwrite_nx=True)
 new.convert_to_sfiles()
 s2=new.sfiles
 if s == s2:
@@ -84,7 +84,7 @@ flowsheet_4.state=G
 flowsheet_4.convert_to_sfiles(version='v2')
 sfiles_1 = flowsheet_4.sfiles
 print(sfiles_1)
-flowsheet_4.create_from_sfiles(sfiles_1, override_nx=True)
+flowsheet_4.create_from_sfiles(sfiles_1, overwrite_nx=True)
 flowsheet_4.convert_to_sfiles(version='v2')
 sfiles_2 = flowsheet_4.sfiles
 print(sfiles_1==sfiles_2)

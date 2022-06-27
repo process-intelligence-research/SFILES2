@@ -144,13 +144,13 @@ class TestSFILESctrl(unittest.TestCase):
         flowsheet.state = graph
         flowsheet.convert_to_sfiles()
         sfilesctrl1 = flowsheet.sfiles
-        flowsheet.create_from_sfiles(sfilesctrl1, override_nx=True)
+        flowsheet.create_from_sfiles(sfilesctrl1, overwrite_nx=True)
         flowsheet.convert_to_sfiles()
         sfilesctrl2 = flowsheet.sfiles
 
         sfiles = flowsheet.convert_sfilesctrl_to_sfiles()
         flowsheet.sfiles = sfiles
-        flowsheet.create_from_sfiles(sfiles, override_nx=True)
+        flowsheet.create_from_sfiles(sfiles, overwrite_nx=True)
         flowsheet.convert_to_sfiles()
         sfiles2 = flowsheet.sfiles
 

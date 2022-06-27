@@ -37,7 +37,7 @@ class FlowsheetTests(unittest.TestCase):
             sfiles_1=ob.sfiles
             all_sfiles1.append(sfiles_1)
             all_sfiles3.append(re.sub(r'\{.*?\}', '',sfiles_1))
-            ob.create_from_sfiles(override_nx=True)
+            ob.create_from_sfiles(overwrite_nx=True)
             ob.convert_to_sfiles(version='v2')
             sfiles_2=ob.sfiles
             all_sfiles2.append(sfiles_2)
