@@ -4,6 +4,7 @@ from Flowsheet_Class.flowsheet import Flowsheet
 
 
 class TestSFILESctrl(unittest.TestCase):
+    """Class performs a unittest to test the SFILES control extension on specific test cases."""
 
     def test_case_1a(self):
         # 1) Measuring point in/at unit operation

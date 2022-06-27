@@ -1,10 +1,11 @@
 import json
 import os
 
-"""Extract nested values from a JSON tree."""
-# https://hackersandslackers.com/extract-data-from-complex-json-python/
+
 def json_extract(obj, key):
-    """Recursively fetch values from nested JSON."""
+    """Recursively fetch values from nested JSON.
+    https://hackersandslackers.com/extract-data-from-complex-json-python/"""
+
     arr = []
 
     def extract(obj, arr, key):
