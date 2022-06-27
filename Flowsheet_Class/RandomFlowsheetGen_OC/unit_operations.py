@@ -29,8 +29,8 @@ unit_ops_probabilities = {
     'Mixing': [['MixingUnit'], [1]],
     'Storage': [['StorageUnit'], [1]],
     'Separation': [['SeparationUnit'], [1]],  # general separation without further specification
-    #'ThermalSeparation': [['DistillationSystem', 'FlashUnit', 'RectificationSystem'], [0.33, 0.33, 0.34]],
-    'ThermalSeparation': [['RectificationSystem'], [1]],
+    'ThermalSeparation': [['DistillationSystem', 'FlashUnit', 'RectificationSystem'], [0.33, 0.33, 0.34]],
+    #'ThermalSeparation': [['RectificationSystem'], [1]],
     'CountercurrentSeparation': [['ExtractionUnit', 'StrippingSystem', 'AbsorptionColumn', 'Scrubber'],
                                  [0.3, 0.2, 0.3, 0.2]],
     'Filtration': [['LiquidFilter', 'GasFilter'], [0.5, 0.5]],
