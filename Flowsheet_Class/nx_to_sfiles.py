@@ -15,23 +15,23 @@ Based on
 
 
 def nx_to_SFILES(flowsheet, version, remove_hex_tags):
-    """
-    Returns the SFILES representation (Tuple of list and string)
+    """Converts a networkx graph to its corresponding SFILES notation.
+
     Parameters
     ----------
     flowsheet: networkx graph
-        flowsheet as networkx graph.
-    version: str
-        SFILES version, either v1 or v2, default is v1
+        Process flowsheet as networkx graph.
+    version: str, default='v1'
+        SFILES version, either 'v1' or 'v2'.
     remove_hex_tags: bool
         Whether to show the 'he' tags in the SFILES_v2 (Conversion back and merging of hex nodes is not possible if
-        this is set to true)
+        this is set to true).
     
     Returns
     ----------
-    sfiles_part: list
+    sfiles_gen: list
         SFILES representation of the flowsheet (still parsed)
-    sfiles_string: str
+    sfiles_string_gen: str
         String SFILES representation of flowsheet
     """
 
@@ -97,23 +97,18 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags):
 
     # SFILES Version 2.0:
     if version == 'v2':
-        sfiles_v2 = SFILES_v2(sfiles, special_edges, edge_information, remove_hex_tags)
-        # Generalization of SFILES (remove node numbering) as last step
-        sfiles_v2_gen = generalize_SFILES(sfiles_v2)
-        sfiles_string_v2_gen = ''.join(sfiles_v2_gen)
-        return sfiles_v2_gen, sfiles_string_v2_gen
-    # SFILES Version 1:
-    else:
-        # Generalization of SFILES (remove node numbering) as last step
-        sfiles_gen = generalize_SFILES(sfiles)
-        sfiles_string_gen = ''.join(sfiles_gen)
-        return sfiles_gen, sfiles_string_gen
+        sfiles = SFILES_v2(sfiles, special_edges, edge_information, remove_hex_tags)
+
+    # Generalization of SFILES (remove node numbering) as last step
+    sfiles_gen = generalize_SFILES(sfiles)
+    sfiles_string_gen = ''.join(sfiles_gen)
+
+    return sfiles_gen, sfiles_string_gen
 
 
 def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, nodes_position_setoffs,
         nodes_position_setoffs_cycle, special_edges, edge_information, first_traversal, sfiles, node_insertion):
-    """
-    Depth first search implementation to traverse the directed graph from the virtual node
+    """Depth first search implementation to traverse the directed graph from the virtual node
     Parameters
     ----------
     visited: list
