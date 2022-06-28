@@ -61,15 +61,15 @@ class FlowsheetTests(unittest.TestCase):
         print("There are %d duplicates"%(len(all_sfiles1) - len(set(all_sfiles1))))
 
 
-        old = []
-        with open(r'C:\Users\hirtr\OneDrive - TUM\Dokumente\PI Research\SFILES2_0\old.txt', 'r') as fp:
-            for line in fp:
+        #old = []
+        #with open(r'C:\Users\hirtr\OneDrive - TUM\Dokumente\PI Research\SFILES2_0\old.txt', 'r') as fp:
+        #    for line in fp:
                 # remove linebreak from a current name
                 # linebreak is the last character of each line
-                x = line[:-1]
+        #        x = line[:-1]
 
                 # add current item to the list
-                old.append(x)
+        #        old.append(x)
 
         #self.assertEqual(all_sfiles1, old, "Error!!")
 

@@ -238,7 +238,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                                                                                           nodes_position_setoffs,
                                                                                           nodes_position_setoffs_cycle,
                                                                                           neighbour, current_node,
-                                                                                          inverse_special_edge=True)
+                                                                                          inverse_special_edge=False)
 
         # Node has only one successor, thus no branching.
         elif len(successors) == 1:
@@ -774,7 +774,7 @@ def rank_by_dfs_tree(dfs_trees_generalized):
 
         if 'prod' in n:
             output_nodes[n] = (len(dfs_trees_generalized[n]), succ_str)
-        elif succ_str.startswith('raw'):
+        elif 'raw' in n:
             input_nodes[n] = (len(dfs_trees_generalized[n]), succ_str)
         elif bool(re.match(r'C-\d+', n)):
             signal_nodes[n] = (len(dfs_trees_generalized[n]), succ_str)
