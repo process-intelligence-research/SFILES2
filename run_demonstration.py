@@ -3,6 +3,103 @@ import os
 from Flowsheet_Class.flowsheet import Flowsheet
 import networkx as nx
 
+
+# Paper Figure 1
+H = nx.DiGraph()
+H.add_edges_from([('raw-1', 'hex-1'), ('hex-1', 'r-1'), ('raw-2', 'pp-1'), ('pp-1', 'r-1'), ('r-1', 'mix-1'),
+                  ('mix-1', 'v-1'), ('v-1', 'dist-1'), ('dist-1', 'prod-1', {'tags': {'he': [''], 'col': ['tout']}}),
+                  ('dist-1', 'splt-1', {'tags': {'he': [''], 'col': ['bout']}}), ('splt-1', 'mix-1'),
+                  ('splt-1', 'prod-2')])
+new = Flowsheet()
+new.state = H
+new.convert_to_sfiles()
+s = new.sfiles
+new.create_from_sfiles(s, overwrite_nx=True)
+new.convert_to_sfiles()
+s2 = new.sfiles
+if s == s2:
+    print('Figure 1:', s)
+    print('Conversion back successful')
+else:
+    print('Conversion back produced a different SFILES string. Input:', s, 'Output:', s2)
+
+# Paper Figure 3
+H = nx.DiGraph()
+H.add_edges_from([('raw-1', 'hex-1/2'), ('hex-1/2', 'dist-1'),
+                  ('dist-1', 'prod-1', {'tags': {'he': [''], 'col': ['bout']}}),
+                  ('dist-1', 'hex-1/1', {'tags': {'he': [''], 'col': ['tout']}}), ('hex-1/1', 'prod-2'),
+                  ('raw-2', 'hex-1/3'), ('hex-1/3', 'prod-3')])
+new = Flowsheet()
+new.state = H
+new.convert_to_sfiles()
+s = new.sfiles
+new.create_from_sfiles(s, overwrite_nx=True)
+new.convert_to_sfiles()
+s2 = new.sfiles
+if s == s2:
+    print('Figure 3:', s)
+    print('Conversion back successful')
+else:
+    print('Conversion back produced a different SFILES string. Input:', s, 'Output:', s2)
+
+# Paper Figure 5
+H = nx.DiGraph()
+H.add_edges_from([('raw-1', 'abs-1', {'tags': {'he': [''], 'col': ['tin']}}),
+                  ('raw-2', 'abs-1', {'tags': {'he': [''], 'col': ['bin']}}),
+                  ('abs-1', 'prod-1', {'tags': {'he': [''], 'col': ['tout']}}),
+                  ('abs-1', 'prod-2', {'tags': {'he': [''], 'col': ['bout']}})
+                  ])
+new = Flowsheet()
+new.state = H
+new.convert_to_sfiles()
+s = new.sfiles
+new.create_from_sfiles(s, overwrite_nx=True)
+new.convert_to_sfiles()
+s2 = new.sfiles
+if s == s2:
+    print('Figure 5:', s)
+    print('Conversion back successful')
+else:
+    print('Conversion back produced a different SFILES string. Input:', s, 'Output:', s2)
+
+# Paper Figure 8
+H = nx.DiGraph()
+H.add_edges_from([('raw-1', 'hex-1/2'), ('hex-1/2', 'dist-1'),
+                  ('dist-1', 'prod-1', {'tags': {'he': [''], 'col': ['bout']}}),
+                  ('dist-1', 'hex-1/1', {'tags': {'he': [''], 'col': ['tout']}}), ('hex-1/1', 'prod-2'),
+                  ('comp-1', 'hex-1/3'), ('hex-1/3', 'v-1'), ('v-1', 'hex-2'), ('hex-2', 'comp-1')])
+new = Flowsheet()
+new.state = H
+new.convert_to_sfiles()
+s = new.sfiles
+new.create_from_sfiles(s, overwrite_nx=True)
+new.convert_to_sfiles()
+s2 = new.sfiles
+if s == s2:
+    print('Figure 8:', s)
+    print('Conversion back successful')
+else:
+    print('Conversion back produced a different SFILES string. Input:', s, 'Output:', s2)
+
+# Paper Figure 9
+H = nx.DiGraph()
+H.add_edges_from([('raw-1', 'pp-1'), ('pp-1', 'r-1'), ('r-1', 'hex-1'), ('hex-1', 'prod-1'), ('raw-2', 'mix-1'),
+                  ('mix-1', 'dist-1'), ('dist-1', 'hex-2', {'tags': {'he': [''], 'col': ['tout']}}), ('hex-2', 'r-1'),
+                  ('dist-1', 'splt-1', {'tags': {'he': [''], 'col': ['bout']}}), ('splt-1', 'mix-1'),
+                  ('splt-1', 'prod-2')])
+new = Flowsheet()
+new.state = H
+new.convert_to_sfiles()
+s = new.sfiles
+new.create_from_sfiles(s, overwrite_nx=True)
+new.convert_to_sfiles()
+s2 = new.sfiles
+if s == s2:
+    print('Figure 9:', s)
+    print('Conversion back successful')
+else:
+    print('Conversion back produced a different SFILES string. Input:', s, 'Output:', s2)
+
 # Methanol process
 H=nx.DiGraph()
 H.add_nodes_from(['IO-1', 'IO-2','IO-3', 'splt-1', 'pp-1', 'mix-1', 'r-1', 'IO-4', 'IO-5','IO-6'])
