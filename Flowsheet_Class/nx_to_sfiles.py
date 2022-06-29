@@ -282,40 +282,40 @@ def insert_cycle(nr_pre_visited, sfiles_part, sfiles, special_edges, nodes_posit
                  nodes_position_setoffs_cycle, node1, node2, inverse_special_edge, signal=False):
     """Inserts the cycle numbering of material recycles and signal connections according to the recycle notation.
 
-        Parameters
-        ----------
-        nr_pre_visited: int
-            Counter variable for cycles.
-        sfiles_part: list [str]
-            SFILES representation of a single traversal of the flowsheet.
-        sfiles: list [str]
-            SFILES representation of the flowsheet (parsed).
-        special_edges: dict
-            Saves, whether an edge (in, out) is a cycle (number>1) or not (number=0).
-        nodes_position_setoffs: dict
-            Counts the occurrences of outgoing and incoming cycles per node.
-        nodes_position_setoffs_cycle: dict
-            Counts the occurrences only of outgoing cycles per node.
-        node1: str
-            Node name of connection to incoming cycle.
-        node2: str
-            Node name of connection to outgoing cycle.
-        inverse_special_edge: bool
-            Inverts the entry in special_edges.
-        signal: bool, default=False
-            If true signal connection notation ('<_#' and '_#')is used.
+    Parameters
+    ----------
+    nr_pre_visited: int
+        Counter variable for cycles.
+    sfiles_part: list [str]
+        SFILES representation of a single traversal of the flowsheet.
+    sfiles: list [str]
+        SFILES representation of the flowsheet (parsed).
+    special_edges: dict
+        Saves, whether an edge (in, out) is a cycle (number>1) or not (number=0).
+    nodes_position_setoffs: dict
+        Counts the occurrences of outgoing and incoming cycles per node.
+    nodes_position_setoffs_cycle: dict
+        Counts the occurrences only of outgoing cycles per node.
+    node1: str
+        Node name of connection to incoming cycle.
+    node2: str
+        Node name of connection to outgoing cycle.
+    inverse_special_edge: bool
+        Inverts the entry in special_edges.
+    signal: bool, default=False
+        If true signal connection notation ('<_#' and '_#')is used.
 
-        Returns
-        ----------
-        nr_pre_visited: int
-            Counter variable for cycles.
-        special_edges: dict
-            Saves, whether an edge (in, out) is a cycle (number>1) or not (number=0).
-        sfiles_part: list [str]
-            SFILES representation of a single traversal of the flowsheet.
-        sfiles: list [str]
-            SFILES representation of the flowsheet (parsed).
-        """
+    Returns
+    ----------
+    nr_pre_visited: int
+        Counter variable for cycles.
+    special_edges: dict
+        Saves, whether an edge (in, out) is a cycle (number>1) or not (number=0).
+    sfiles_part: list [str]
+        SFILES representation of a single traversal of the flowsheet.
+    sfiles: list [str]
+        SFILES representation of the flowsheet (parsed).
+    """
 
     # Check if incoming cycle is connected to node of current traversal or previous traversal.
     if '(' + node1 + ')' not in flatten(sfiles_part):
@@ -702,17 +702,17 @@ def flatten(nested_list):
 def find_nested_indices(nested_list, node):
     """Returns index of node in nested list.
 
-        Parameters
-        ----------
-        nested_list: list
-            List of lists.
-        node: str
-            Name of node.
+    Parameters
+    ----------
+    nested_list: list
+        List of lists.
+    node: str
+        Name of node.
 
-        Returns
-        ----------
-        indices: list
-            Flat list without nested lists.
+    Returns
+    ----------
+    indices: list
+        Flat list without nested lists.
     """
 
     temp_list = nested_list.copy()
@@ -803,24 +803,24 @@ def insert_signal_connections(edge_infos_signal, sfiles, nodes_position_setoffs_
                               special_edges):
     """Inserts signal connections in SFILES.
 
-        Parameters
-        ----------
-        edge_infos_signal: dict
-            Contains information about signal edges.
-        sfiles: list [str]
-            SFILES representation of the flowsheet (parsed).
-        nodes_position_setoffs: dict
-            Counts the occurrences of outgoing and incoming cycles per node.
-        nodes_position_setoffs_cycle: dict
-            Counts the occurrences only of outgoing cycles per node.
-        special_edges: dict
-            Saves, whether an edge (in,out) is a cycle (number>1) or not (number=0).
+    Parameters
+    ----------
+    edge_infos_signal: dict
+        Contains information about signal edges.
+    sfiles: list [str]
+        SFILES representation of the flowsheet (parsed).
+    nodes_position_setoffs: dict
+        Counts the occurrences of outgoing and incoming cycles per node.
+    nodes_position_setoffs_cycle: dict
+        Counts the occurrences only of outgoing cycles per node.
+    special_edges: dict
+        Saves, whether an edge (in,out) is a cycle (number>1) or not (number=0).
 
-        Returns
-        ----------
-        sfiles: list
-            SFILES list including signal connections.
-        """
+    Returns
+    ----------
+    sfiles: list
+        SFILES list including signal connections.
+    """
 
     nr_pre_visited_signal = 0
     signal_nodes = [k[0] for k in edge_infos_signal.keys()]

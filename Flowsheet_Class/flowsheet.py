@@ -16,20 +16,20 @@ class Flowsheet:
 
     Parameters
     ----------
-        self.state: networkx graph
-            Stores the process flowsheet represented as networkx graph.
-        self.sfiles: str
-            String representation of the process flowsheet.
-        self.sfiles_list: list [str]
-            List of SFILES tokens (parsed SFILES string).
-        OntoCapeConformity: bool, default=False
-            Specify as True when using OntoCape vocabulary (should be the standard in future).
-        sfiles_in: str
-            SFILES string input.
-        sfiles_list_in: list [str]
-            Parsed SFILES string input.
-        xml_file: str
-            Path to xml file that can be read with nx.read_graphml method.
+    self.state: networkx graph
+        Stores the process flowsheet represented as networkx graph.
+    self.sfiles: str
+        String representation of the process flowsheet.
+    self.sfiles_list: list [str]
+        List of SFILES tokens (parsed SFILES string).
+    OntoCapeConformity: bool, default=False
+        Specify as True when using OntoCape vocabulary (should be the standard in future).
+    sfiles_in: str
+        SFILES string input.
+    sfiles_list_in: list [str]
+        Parsed SFILES string input.
+    xml_file: str
+        Path to xml file that can be read with nx.read_graphml method.
     """
 
     def __init__(self, OntoCapeConformity=False, sfiles_in=None, sfiles_list_in=None, xml_file=None):
@@ -328,8 +328,8 @@ class Flowsheet:
 
         Parameters
         ----------
-            add_sfiles: bool, default=True
-                True if SFILES representation should be added.
+        add_sfiles: bool, default=True
+            True if SFILES representation should be added.
         """
         random_flowsheet = Generate_flowsheet()
 
