@@ -838,6 +838,13 @@ def insert_signal_connections(edge_infos_signal, sfiles, nodes_position_setoffs_
         nodes_position_setoffs_cycle = nodes_position_setoffs_cycle_temp.copy()
         nodes_position_setoffs = nodes_position_setoffs_temp.copy()
 
+        # TODO: Check if this works!
+        #nodes_position_setoffs_cycle = nodes_position_setoffs_cycle.fromkeys(nodes_position_setoffs_cycle, 0)
+        #nodes_position_setoffs = nodes_position_setoffs_cycle.fromkeys(nodes_position_setoffs, 0)
+        for k, v in special_edges.items():
+            if v == '&':
+                nodes_position_setoffs[k[1]] = 0
+
         # Sort the signal nodes according to their position in the SFILES.
         signal_nodes_sorted = dict(sorted(pos.items()))
         signal_nodes_sorted = list(signal_nodes_sorted.values())
