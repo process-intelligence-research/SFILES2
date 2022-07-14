@@ -4,7 +4,13 @@ import networkx as nx
 from .utils_visualization import create_stream_table, create_unit_table, plot_flowsheet_nx, plot_flowsheet_pyflowsheet
 import re
 from .nx_to_sfiles import nx_to_SFILES
-from PID_generation.PID_generator import Generate_flowsheet
+
+try:
+    from PID_generation.PID_generator import Generate_flowsheet
+
+    PID_generator = True
+except ImportError:
+    PID_generator = False
 
 
 class Flowsheet:
@@ -55,7 +61,7 @@ class Flowsheet:
     def add_stream(self, node1, node2, tags={'he': [], 'col': []}):
         """Method adds a stream as an edge to the existing flowsheet graph, thereby connecting two unit operations
         (nodes).
-        
+
         Parameters
         ----------
         node1: str
@@ -72,7 +78,7 @@ class Flowsheet:
     def create_from_sfiles(self, sfiles_in="", overwrite_nx=False, merge_HI_nodes=True):
         """Function to read SFILES (parsed or unparsed) and creates units (without child objects) and streams. Result is
          a flowsheet with units with categories and specific categories. Converts the SFILES string to a networkx graph.
-        
+
         Parameters
         ----------
         sfiles_in: str
@@ -199,7 +205,7 @@ class Flowsheet:
                     # Inside an incoming branch |, &| can occur on this level of if clauses.
                     # Find the node the incoming branch is leading to and add the connection.
                     elif self.sfiles_list[token_idx + step] == '&' or self.sfiles_list[token_idx + step] == '&|':
-                        # Run backwards through last operations, search for unit operations, 
+                        # Run backwards through last operations, search for unit operations,
                         # but ignore everything if its token in this or another incoming branch.
                         break_while = False
                         if self.sfiles_list[token_idx + step] == '&|':
@@ -327,23 +333,24 @@ class Flowsheet:
         add_sfiles: bool, default=True
             True if SFILES representation should be added.
         """
-        random_flowsheet = Generate_flowsheet()
+        if PID_generator:
+            random_flowsheet = Generate_flowsheet()
 
-        for name in random_flowsheet.nodes:
-            self.add_unit(unique_name=name)
+            for name in random_flowsheet.nodes:
+                self.add_unit(unique_name=name)
 
-        for connection in random_flowsheet.edges:
-            # Adjust tags: tags:[..] to tags:{'he':[..],'col':[..]}
-            regex_he = re.compile(r"(hot.*|cold.*|[0-9].*)")
-            regex_col = re.compile(r"(tout|tin|bout|bin)")
-            regex_signal = re.compile(r"not_next_unitop|next_unitop")
-            old_tags = connection[2]['tags']
-            tags = {'he': [m.group(0) for k in old_tags for m in [regex_he.search(k)] if m],
-                    'col': [m.group(0) for k in old_tags for m in [regex_col.search(k)] if m],
-                    'signal': [m.group(0) for m in [regex_signal.search(str(old_tags))] if m]}
-            self.add_stream(connection[0], connection[1], tags=tags)
-        if add_sfiles:
-            self.convert_to_sfiles(version='v2')
+            for connection in random_flowsheet.edges:
+                # Adjust tags: tags:[..] to tags:{'he':[..],'col':[..]}
+                regex_he = re.compile(r"(hot.*|cold.*|[0-9].*)")
+                regex_col = re.compile(r"(tout|tin|bout|bin)")
+                regex_signal = re.compile(r"not_next_unitop|next_unitop")
+                old_tags = connection[2]['tags']
+                tags = {'he': [m.group(0) for k in old_tags for m in [regex_he.search(k)] if m],
+                        'col': [m.group(0) for k in old_tags for m in [regex_col.search(k)] if m],
+                        'signal': [m.group(0) for m in [regex_signal.search(str(old_tags))] if m]}
+                self.add_stream(connection[0], connection[1], tags=tags)
+            if add_sfiles:
+                self.convert_to_sfiles(version='v2')
 
     def visualize_flowsheet(self, figure=True, plot_with_stream_labels=True, table=True, plot_as_pfd=True,
                             pfd_block=True, decimals=3, pfd_path='plots/flowsheet', chemicalspecies=None,
@@ -413,7 +420,7 @@ class Flowsheet:
         ----------
         nested_list: list
             Nested list.
-        
+
         Returns
         ----------
         flat_list: list
@@ -437,7 +444,7 @@ class Flowsheet:
             Dictionary to be chunked.
         chunk_size: int
             Chunk size.
-        
+
         Returns
         -------
         res: list
@@ -459,7 +466,7 @@ class Flowsheet:
     def SFILES_parser(self):
         """Parses a SFILES string and returns a list with SFILES elements
         ! At the moment assumes that there are less than 100 cycles !
-        
+
         Returns
         -------
         sfiles_list: list
@@ -649,7 +656,7 @@ class Flowsheet:
             List of edges without tags.
         nodes: ditc
             Mapping of nodes and in and out tags.
-        
+
         Returns
         ----------
         edges: list

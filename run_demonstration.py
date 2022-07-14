@@ -1,5 +1,3 @@
-import sys
-import os
 from Flowsheet_Class.flowsheet import Flowsheet
 import networkx as nx
 
@@ -17,11 +15,6 @@ if sfiles_in==flowsheet_2.sfiles:
 else:
     print('Conversion back produced a different SFILES string. Input:', sfiles_in, 'Output:', flowsheet_2.sfiles)
 
-# Random flowsheet generation check
-flowsheet_3=Flowsheet(OntoCapeConformity=True)
-flowsheet_3.create_random_flowsheet()
-flowsheet_3.visualize_flowsheet(table=False, pfd_path='plots/flowsheet4', plot_with_stream_labels=False)
-print(flowsheet_3.sfiles)
 
 # Check SFILES v2 notation for a heat exchanger with 2 streams
 G = nx.DiGraph()
@@ -32,7 +25,7 @@ flowsheet_4.state=G
 flowsheet_4.convert_to_sfiles(version='v2')
 sfiles_1 = flowsheet_4.sfiles
 print(sfiles_1)
-flowsheet_4.create_from_sfiles(sfiles_1, override_nx=True)
+flowsheet_4.create_from_sfiles(sfiles_1, overwrite_nx=True)
 flowsheet_4.convert_to_sfiles(version='v2')
 sfiles_2 = flowsheet_4.sfiles
 print(sfiles_1==sfiles_2)
