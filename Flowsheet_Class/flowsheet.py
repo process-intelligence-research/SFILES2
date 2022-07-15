@@ -761,4 +761,9 @@ class Flowsheet:
         sfiles = re.sub(r'\[]', '', sfiles)
         sfiles = re.sub(r'n\|$', '', sfiles)
 
+        # Ensure cannonical SFILE after control structure removal.
+        flowsheet = Flowsheet()
+        flowsheet.create_from_sfiles(sfiles, overwrite_nx=True)
+        flowsheet.convert_to_sfiles()
+        sfiles = flowsheet.sfiles
         return sfiles
