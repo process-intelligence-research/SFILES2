@@ -1,0 +1,11 @@
+__pycache__/
+plots/
+.idea
+.vscode
+run_demonstration_ctrl.py
+Flowsheet_Class/RandomFlowsheetGen_OC
+Real_data
+LM
+ControlPatterns
+Read_ctrl_patterns.py
+run_demonstration_ctrl.py
