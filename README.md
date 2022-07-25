@@ -17,4 +17,4 @@ source activate envname # activate environment
 python -m ipykernel install --user --name envname --display-name "Python (envname)"
 ```
 ## Demonstration of functionality
-You can either have a look at the `demonstration.ipynb` which demonstrates SFILES 2.0 strings for a variety of PFDs **and P&IDs??** or run the python file `run_demonstration.py`.
+You can either have a look at the `demonstration.ipynb` which demonstrates SFILES 2.0 strings for a variety of PFDs and P&IDs or run the python file `run_demonstration.py`.
