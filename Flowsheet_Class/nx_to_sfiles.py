@@ -1,6 +1,9 @@
+import random
 import networkx as nx
 import re
 import numpy as np
+
+random.seed(1)
 
 """
 Exposes functionality for writing SFILES (Simplified flowsheet input line entry system) strings
@@ -14,7 +17,7 @@ Based on
 """
 
 
-def nx_to_SFILES(flowsheet, version, remove_hex_tags):
+def nx_to_SFILES(flowsheet, version, remove_hex_tags, canonical=True):
     """Converts a networkx graph to its corresponding SFILES notation.
 
     Parameters
@@ -52,7 +55,7 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags):
     # Find initial nodes of graph. Initial nodes are determined by an in-degree of zero.
     init_nodes = [n for n, d in flowsheet_wo_signals.in_degree() if d == 0]
     # Sort the possible initial nodes for traversal depending on their rank.
-    init_nodes = sort_by_rank(init_nodes, ranks)
+    init_nodes = sort_by_rank(init_nodes, ranks, canonical=True)
 
     # Add an additional virtual node, which is connected to every initial node. Thus, one graph traversal is sufficient
     # to access every node in the graph.
@@ -69,7 +72,7 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags):
     connected_to_virtual = set(nx.node_connected_component(flowsheet_undirected, 'virtual'))
     not_connected = set(flowsheet_wo_signals.nodes) - connected_to_virtual
     while not_connected:
-        rank_not_connected = sort_by_rank(not_connected, ranks)
+        rank_not_connected = sort_by_rank(not_connected, ranks, canonical=True)
         rank_not_connected = [k for k in rank_not_connected if flowsheet_wo_signals.out_degree(k) > 0]
         flowsheet_wo_signals.add_edges_from([('virtual', rank_not_connected[0])])
         connected_to_virtual = set(nx.node_connected_component(flowsheet_undirected, 'virtual'))
@@ -88,7 +91,7 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags):
                                                               nr_pre_visited, ranks, nodes_position_setoffs,
                                                               nodes_position_setoffs_cycle, special_edges,
                                                               edge_information_signal, first_traversal=True, sfiles=[],
-                                                              node_insertion='')
+                                                              node_insertion='', canonical=canonical)
 
     # Flatten nested list of sfile_part
     sfiles = flatten(sfiles)
@@ -105,7 +108,8 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags):
 
 
 def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, nodes_position_setoffs,
-        nodes_position_setoffs_cycle, special_edges, edge_information, first_traversal, sfiles, node_insertion):
+        nodes_position_setoffs_cycle, special_edges, edge_information, first_traversal, sfiles, node_insertion,
+        canonical=True):
     """Depth first search implementation to traverse the directed graph from the virtual node.
 
     Parameters
@@ -136,6 +140,8 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
         SFILES representation of the flowsheet (parsed).
     node_insertion: str
         Node of previous traversal(s) where branch (first) ends, default is an empty string.
+    canonical: bool, default=True
+        Whether the resulting SFILES should be canonical (True) or not (False).
 
     Returns
     -------
@@ -152,7 +158,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
     if current_node == 'virtual':
         visited.add(current_node)
         # Traversal order according to ranking of nodes.
-        neighbours = sort_by_rank(flowsheet[current_node], ranks, visited)
+        neighbours = sort_by_rank(flowsheet[current_node], ranks, visited, canonical=True)
         for neighbour in neighbours:
             # Reset sfiles_part for every new traversal starting from 'virtual', since new traversal is started.
             sfiles_part = []
@@ -160,7 +166,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                                                                       nr_pre_visited, ranks, nodes_position_setoffs,
                                                                       nodes_position_setoffs_cycle, special_edges,
                                                                       edge_information, first_traversal, sfiles,
-                                                                      node_insertion='')
+                                                                      node_insertion='', canonical=canonical)
             # First traversal: sfiles_part is equal to sfiles.
             # Further traversals: traversals, which are connected to the first traversal are inserted with '<&|...&|'
             # and independent subgraphs are inserted with 'n|'.
@@ -192,7 +198,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
             sfiles_part.append('(' + current_node + ')')
             visited.add(current_node)
             # Branching decision according to ranking of nodes.
-            neighbours = sort_by_rank(flowsheet[current_node], ranks, visited)
+            neighbours = sort_by_rank(flowsheet[current_node], ranks, visited, canonical)
             for neighbour in neighbours:
                 if not neighbour == neighbours[-1]:
                     sfiles_part.append('[')
@@ -203,7 +209,8 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                                                                               ranks, nodes_position_setoffs,
                                                                               nodes_position_setoffs_cycle,
                                                                               special_edges, edge_information,
-                                                                              first_traversal, sfiles, node_insertion)
+                                                                              first_traversal, sfiles, node_insertion,
+                                                                              canonical=canonical)
                     if not neighbour == neighbours[-1]:
                         sfiles_part.append(']')
 
@@ -248,7 +255,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                                                                       nr_pre_visited, ranks, nodes_position_setoffs,
                                                                       nodes_position_setoffs_cycle, special_edges,
                                                                       edge_information, first_traversal, sfiles,
-                                                                      node_insertion)
+                                                                      node_insertion, canonical=canonical)
         # Dead end.
         elif len(successors) == 0:
             visited.add(current_node)
@@ -339,9 +346,9 @@ def insert_cycle(nr_pre_visited, sfiles_part, sfiles, special_edges, nodes_posit
 
     # Additional info: edge is marked as a cycle edge in SFILES.
     if inverse_special_edge:
-        special_edges[(node1, node2)] = nr_pre_visited
+        special_edges[(node1, node2)] = ('%' if nr_pre_visited > 9 else '') + str(nr_pre_visited)
     else:
-        special_edges[(node2, node1)] = nr_pre_visited
+        special_edges[(node2, node1)] = ('%' if nr_pre_visited > 9 else '') + str(nr_pre_visited)
 
     return nr_pre_visited, special_edges, sfiles_part, sfiles
 
@@ -463,7 +470,7 @@ def generalize_SFILES(sfiles):
     return sfiles_gen
 
 
-def sort_by_rank(nodes_to_sort, ranks, visited=[]):
+def sort_by_rank(nodes_to_sort, ranks, visited=[], canonical=True):
     """Method to sort the nodes by their ranks.
 
     Parameters
@@ -474,6 +481,8 @@ def sort_by_rank(nodes_to_sort, ranks, visited=[]):
         Node ranks calculated in calc_graph_invariant().
     visited: set
         List of already visited nodes.
+    canonical: bool, default=True
+        Whether the resulting SFILES should be canonical (True) or not (False).
 
     Returns
     -------
@@ -497,6 +506,9 @@ def sort_by_rank(nodes_to_sort, ranks, visited=[]):
     all_nodes_sorted = dict(nodes_sorted_dict_cycle, **nodes_sorted_dict)
     # Only take the sorted keys as list.
     nodes_sorted = list(all_nodes_sorted.keys())
+
+    if not canonical:
+        random.shuffle(nodes_sorted)
 
     return nodes_sorted
 
@@ -568,6 +580,10 @@ def calc_graph_invariant(flowsheet):
         for key, value in k_v_exchanged_sorted.items():
             ranks_list.append(value)
 
+        edge_information = nx.get_edge_attributes(flowsheet, 'tags')
+        edge_information_col = {k: flatten(v['col']) for k, v in edge_information.items() if 'col' in v.keys() if
+                                v['col']}
+
         # 2. We afterwards sort the nested lists (same rank). This is the tricky part of breaking the ties.
         for pos, eq_ranked_nodes in enumerate(ranks_list):
             # eq_ranked_nodes is a list itself. They are sorted, so the unique ranks depend on their names.
@@ -587,6 +603,15 @@ def calc_graph_invariant(flowsheet):
                     edges = [(k.split(sep='-')[0], v.split(sep='-')[0]) for k, v in edges]
                     sorted_edge = sorted(edges, key=lambda element: (element[0], element[1]))
                     sorted_edge = [i for sub in sorted_edge for i in sub]
+
+                    edge_tags = []
+                    for edge, tag in edge_information_col.items():
+                        if edge[0] == eq_ranked_nodes[k] or edge[1] == eq_ranked_nodes[k]:
+                            edge_tags.append(tag[0])
+
+                    edge_tags = ''.join(sorted(edge_tags))
+                    if edge_tags:
+                        sorted_edge.insert(0, edge_tags)
                     sorted_edges.append(sorted_edge)
 
                 dfs_trees_generalized = {eq_ranked_nodes[i]: sorted_edges[i] for i in range(0, len(eq_ranked_nodes))}
