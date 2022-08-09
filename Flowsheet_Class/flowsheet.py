@@ -39,7 +39,7 @@ class Flowsheet:
         self.sfiles = sfiles_in
         self.sfiles_list = sfiles_list_in
         self.flowsheet_SFILES_names = None
-        self.state = nx.DiGraph()  # Default initialization of the flowsheet as a nx Graph
+        self.state = nx.DiGraph()  # Default initialization of the flowsheet as a nx Graph.
         if xml_file:  # ToDo mapping xml digitization group -> OntoCape vocab
             self.state = nx.read_graphml(xml_file)
         elif sfiles_in:
