@@ -4,8 +4,9 @@ import random
 
 random.seed(1)
 
+
 def canonical_to_noncanonical_sfile(sfiles, version: int = 2, sfiles_amount: int = 20, max_failed_attempts: int = 5):
-    """Converts 1 sfile into a random non-canonical sfile, corresponding to the same graph
+    """Converts 1 SFILES into a random non-canonical SFILES, corresponding to the same graph
     Parameters
     ----------
     sfiles: string
@@ -81,10 +82,9 @@ def canonical_to_noncanonical_txt(version: int = 2, src: str = 'dev_data', sfile
 
 
 def non_canonical_tester(version: int = 2, src: str = 'dev_data.txt', sfiles_amount: int = 10):
-    """Tests the 'canonical_to_noncanonical_sfile' function
-    calls canonical_to_noncanonical_sfile to convert sfile into non_canonical,
-    then creates new graph with non_canonical sfile, and converts this graph into canonical sfile
-    original sfile and newly created canonical sfile should be the same
+    """Tests the 'canonical_to_noncanonical_sfile' function: Canonical SFILES are converted to non-canonical SFILES and
+    thereafter backconverted to canonical SFILES. Check if provided SFILES are equal to backconverted canonical SFILES.
+
     Parameters
     ----------
     version: integer
@@ -99,7 +99,6 @@ def non_canonical_tester(version: int = 2, src: str = 'dev_data.txt', sfiles_amo
     Percentage of correctly converted SFILES.
     """
 
-
     correct_augmentation = 0
     false_augmentation = 0
 
@@ -108,7 +107,8 @@ def non_canonical_tester(version: int = 2, src: str = 'dev_data.txt', sfiles_amo
             correct_counter = 0
             false_counter = 0
 
-            sfiles = line[:-2]
+            # sfiles = line[:-2]
+            sfiles = line[:-1]
             augmented_sfiles = canonical_to_noncanonical_sfile(sfiles, version, sfiles_amount)
 
             for item in augmented_sfiles:
