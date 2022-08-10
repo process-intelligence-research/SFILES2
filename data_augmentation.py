@@ -1,5 +1,5 @@
 import os
-from Flowsheet_Class.flowsheet import Flowsheet
+from SFILES2.Flowsheet_Class.flowsheet import Flowsheet
 import random
 
 random.seed(1)
