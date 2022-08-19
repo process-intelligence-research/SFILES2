@@ -566,7 +566,7 @@ class Flowsheet:
 
         for n in list(self.state.nodes):
             if heatexchanger in n and flowsheet_wo_signals.in_degree(n) > 1:  # Heat exchangers with more than 1 streams
-                assert (flowsheet_wo_signals.out_degree(n) == flowsheet_wo_signals.in_degree(n))
+                #assert (flowsheet_wo_signals.out_degree(n) == flowsheet_wo_signals.in_degree(n))
                 edge_infos = nx.get_edge_attributes(self.state, "tags")
                 edges_in = list(self.state.in_edges(n))
                 edges_out = list(self.state.out_edges(n))
@@ -759,6 +759,16 @@ class Flowsheet:
 
         pattern = re.compile(r'<?_+\d+|{[A-Z]+}|\(C\)')
         sfiles = [re.sub(pattern, '', i) for i in self.sfiles_list]
+
+        # This step prevents that the number of a material recylce # occurs after <#.
+        sfiles = [item for item in sfiles if not item == '']
+        for k in range(1, len(sfiles)):
+            if re.match(r'\d+', sfiles[k]) and re.match(r'<\d+', sfiles[k - 1]):
+                outgoing_recycle = sfiles[k]
+                incoming_recycle = sfiles[k-1]
+                sfiles[k] = incoming_recycle
+                sfiles[k-1] = outgoing_recycle
+
         sfiles = ''.join(sfiles)
         sfiles = re.sub(r'\[]', '', sfiles)
         sfiles = re.sub(r'n\|$', '', sfiles)
