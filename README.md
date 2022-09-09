@@ -5,7 +5,7 @@ The repository contains functionality for the conversion between PFD-graphs/P&ID
 ## How to use this repository? 
 To use the SFILES 2.0 code, first clone the repository: 
 ```sh
-git clone git@github.com:process-intelligence-research/SFILES2.git
+git clone https://github.com/process-intelligence-research/SFILES2.git
 ```
 After creating and activating a new virtual environment, you can use the requirements.txt file to install all required packages:
 ```sh
