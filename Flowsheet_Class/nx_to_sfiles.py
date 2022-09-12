@@ -742,6 +742,8 @@ def find_nested_indices(nested_list, node):
 
     temp_list = nested_list.copy()
     indices = []
+    if node not in flatten(nested_list):
+        raise KeyError('Node not in nested list!')
     while True:
         try:
             pos = temp_list.index(node)
