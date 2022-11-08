@@ -1,17 +1,14 @@
 import warnings
-from .OntoCape_SFILES_mapping import OntoCape_SFILES_map
+from PID_Prediction.SFILES2.Flowsheet_Class.OntoCape_SFILES_mapping import OntoCape_SFILES_map
 import networkx as nx
-from .utils_visualization import create_stream_table, create_unit_table, plot_flowsheet_nx, plot_flowsheet_pyflowsheet
+from PID_Prediction.SFILES2.Flowsheet_Class.utils_visualization import create_stream_table, create_unit_table, plot_flowsheet_nx, plot_flowsheet_pyflowsheet
 import re
-from .nx_to_sfiles import nx_to_SFILES
-
+from PID_Prediction.SFILES2.Flowsheet_Class.nx_to_sfiles import nx_to_SFILES
 try:
-    from PID_generation.PID_generator import Generate_flowsheet
-
+    from PID_Prediction.PID_generation.PID_generator import Generate_flowsheet
     PID_generator = True
 except ImportError:
     PID_generator = False
-
 
 class Flowsheet:
     """This is a class to create flowsheets represented as a graphs.
