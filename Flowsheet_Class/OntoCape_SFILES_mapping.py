@@ -35,5 +35,8 @@ OntoCape_SFILES_map = {
 'ElectricalGasCleaningUnit':'egclean',
 'Valve':'v',
 'ProcessUnit':'X',
-'Control': 'C'
+'Control': 'C',
+'X': 'X',
+'InputOutput': 'X',
+'ms': 'X'
 }

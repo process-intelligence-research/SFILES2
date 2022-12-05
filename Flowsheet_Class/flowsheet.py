@@ -7,7 +7,6 @@ from .nx_to_sfiles import nx_to_SFILES
 
 try:
     from PID_generation.PID_generator import Generate_flowsheet
-
     PID_generator = True
 except ImportError:
     PID_generator = False
@@ -303,7 +302,7 @@ class Flowsheet:
 
         self.state = initial_flowsheet
 
-    def convert_to_sfiles(self, version='v2', remove_hex_tags=True):
+    def convert_to_sfiles(self, version='v2', remove_hex_tags=True, canonical=True):
         """Method to convert the flowsheet nx graph to string representation SFILES. Returns an SFILES string and a
         parsed list of the SFILES tokens.
 
@@ -322,7 +321,7 @@ class Flowsheet:
             # in hex-#/# notation
             self.split_HI_nodes()
             self.flowsheet_SFILES_names = self.state.copy()
-        self.sfiles_list, self.sfiles = nx_to_SFILES(self.flowsheet_SFILES_names, version, remove_hex_tags)
+        self.sfiles_list, self.sfiles = nx_to_SFILES(self.flowsheet_SFILES_names, version, remove_hex_tags, canonical)
 
     def create_random_flowsheet(self, add_sfiles=True):
         """This methods creates a random flowsheet. The specification for the random flowsheet is created in a separate
@@ -567,7 +566,7 @@ class Flowsheet:
 
         for n in list(self.state.nodes):
             if heatexchanger in n and flowsheet_wo_signals.in_degree(n) > 1:  # Heat exchangers with more than 1 streams
-                assert (flowsheet_wo_signals.out_degree(n) == flowsheet_wo_signals.in_degree(n))
+                #assert (flowsheet_wo_signals.out_degree(n) == flowsheet_wo_signals.in_degree(n))
                 edge_infos = nx.get_edge_attributes(self.state, "tags")
                 edges_in = list(self.state.in_edges(n))
                 edges_out = list(self.state.out_edges(n))
@@ -691,6 +690,7 @@ class Flowsheet:
 
         unit_counting = {}
         HI_hex = {}
+
         for s_idx, s in enumerate(self.sfiles_list):
 
             if bool(re.match(r'\(.*?\)', s)):  # Current s is a unit operation.
@@ -698,6 +698,7 @@ class Flowsheet:
                 if unit_cat not in unit_counting:  # First unit in SFILES of that category.
                     unit_counting[unit_cat] = 1
                     unit_name = unit_cat + '-' + '1'
+
                     # Check if the current unit is a hex unit with heat integration. -> Special node name
                     # Only if it's not the last token.
                     if s_idx < len(self.sfiles_list) - 1:
@@ -711,6 +712,7 @@ class Flowsheet:
                 else:
                     # Check if the current unit is a unit with heat integration. -> Special node name
                     # Only possible if it's not the last token.
+
                     if s_idx < len(self.sfiles_list) - 1:
                         if bool(re.match(r'{[0-9]+}', self.sfiles_list[s_idx + 1])):
                             _HI_number = self.sfiles_list[s_idx + 1][1:-1]
@@ -757,6 +759,16 @@ class Flowsheet:
 
         pattern = re.compile(r'<?_+\d+|{[A-Z]+}|\(C\)')
         sfiles = [re.sub(pattern, '', i) for i in self.sfiles_list]
+
+        # This step prevents that the number of a material recylce # occurs after <#.
+        sfiles = [item for item in sfiles if not item == '']
+        for k in range(1, len(sfiles)):
+            if re.match(r'\d+', sfiles[k]) and re.match(r'<\d+', sfiles[k - 1]):
+                outgoing_recycle = sfiles[k]
+                incoming_recycle = sfiles[k-1]
+                sfiles[k] = incoming_recycle
+                sfiles[k-1] = outgoing_recycle
+
         sfiles = ''.join(sfiles)
         sfiles = re.sub(r'\[]', '', sfiles)
         sfiles = re.sub(r'n\|$', '', sfiles)
