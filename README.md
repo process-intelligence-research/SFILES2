@@ -7,7 +7,7 @@ To use the SFILES 2.0 code, first clone the repository:
 ```sh
 git clone https://github.com/process-intelligence-research/SFILES2.git
 ```
-After creating and activating a new virtual environment, you can use the requirements.txt file to install all required packages:
+After creating and activating a new virtual environment (python 3.9), you can use the requirements.txt file to install all required packages:
 ```sh
 pip install -r requirements.txt
 ```
