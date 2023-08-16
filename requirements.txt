@@ -3,5 +3,6 @@ networkx==2.6.3
 numpy==1.21.3
 tabulate==0.8.9
 pyflowsheet~=0.2.2
+pathfinding==1.0.1
 ipython~=7.30.1
 ipykernel
