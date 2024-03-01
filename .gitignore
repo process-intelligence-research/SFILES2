@@ -1,5 +1,7 @@
 __pycache__/
+/venv
 plots/
+.ipynb_checkpoints
 .idea
 .vscode
 run_demonstration_ctrl.py
