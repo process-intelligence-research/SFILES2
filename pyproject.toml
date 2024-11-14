@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["Flowsheet_Class"]
+
+[project]
+name = "SFILES2"
+version = "v1.0.0"
+description = "Conversion between PFDs/P&IDs and SFILES 2.0 strings."
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = [
+    "SFILES 2.0, PFD, chemical engineering",
+]
+authors = [
+    { name = "Gabriel Vogel", email = "G.Vogel@tudelft.nl" },
+    { name = "Edwin Hirtreiter", email = "edwin.hirtreiter@tum.de" },
+    { name = "Lukas Schulze Balhorn", email = "L.Schulzebalhorn@tudelft.nl" },
+    { name = "Artur M. Schweidtmann", email = "A.Schweidtmann@tudelft.nl" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "matplotlib==3.4.3",
+    "networkx==2.6.3",
+    "numpy==1.21.3",
+    "tabulate==0.8.9",
+    "pyflowsheet~=0.2.2",
+    "pathfinding==1.0.1",
+    "ipython~=7.30.1",
+    "ipykernel",
+]
+
+[project.urls]
+Homepage = "https://www.pi-research.org/"
+Source = "https://github.com/process-intelligence-research/SFILES2"
+
+[tool.ruff]
+line-length = 80
+
+[tool.ruff.lint]
+extend-select = ["Q", "RUF100", "UP", "I", "E", "F"]
+extend-ignore = [
+    "E501", # line too long
+]
+isort = { combine-as-imports = true }
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
