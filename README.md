@@ -28,14 +28,14 @@ You can either have a look at the `demonstration.ipynb` which demonstrates SFILE
 If you use this package or find it helpful in your research, please consider citing:
 
 ```text
-@article{hirtreiter2024toward,
-  title={Toward automatic generation of control structures for process flow diagrams with large language models},
-  author={Hirtreiter, Edwin and Schulze Balhorn, Lukas and Schweidtmann, Artur M},
-  journal={AIChE Journal},
-  volume={70},
-  number={1},
-  pages={e18259},
-  year={2024},
-  publisher={Wiley Online Library}
+@article{vogel2023sfiles,
+  title={SFILES 2.0: an extended text-based flowsheet representation},
+  author={Vogel, Gabriel and Hirtreiter, Edwin and Schulze Balhorn, Lukas and Schweidtmann, Artur M},
+  journal={Optimization and Engineering},
+  volume={24},
+  number={4},
+  pages={2911--2933},
+  year={2023},
+  publisher={Springer}
 }
 ```

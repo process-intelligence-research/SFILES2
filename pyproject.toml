@@ -7,7 +7,7 @@ packages = ["Flowsheet_Class"]
 
 [project]
 name = "SFILES2"
-version = "v1.0.1"
+version = "v1.0.2"
 description = "Conversion between PFDs/P&IDs and SFILES 2.0 strings."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -15,10 +15,10 @@ keywords = [
     "SFILES 2.0, PFD, chemical engineering",
 ]
 authors = [
+    { name = "Artur M. Schweidtmann", email = "A.Schweidtmann@tudelft.nl" },
     { name = "Gabriel Vogel", email = "G.Vogel@tudelft.nl" },
     { name = "Edwin Hirtreiter", email = "edwin.hirtreiter@tum.de" },
     { name = "Lukas Schulze Balhorn", email = "L.Schulzebalhorn@tudelft.nl" },
-    { name = "Artur M. Schweidtmann", email = "A.Schweidtmann@tudelft.nl" },
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
