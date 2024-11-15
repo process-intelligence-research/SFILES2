@@ -7,10 +7,10 @@ packages = ["Flowsheet_Class"]
 
 [project]
 name = "SFILES2"
-version = "v1.0.0"
+version = "v1.0.1"
 description = "Conversion between PFDs/P&IDs and SFILES 2.0 strings."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 keywords = [
     "SFILES 2.0, PFD, chemical engineering",
 ]
