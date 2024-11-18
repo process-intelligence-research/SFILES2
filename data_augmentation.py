@@ -1,6 +1,7 @@
 import os
-from SFILES2.Flowsheet_Class.flowsheet import Flowsheet
 import random
+
+from SFILES2.Flowsheet_Class.flowsheet import Flowsheet
 
 random.seed(1)
 
@@ -37,10 +38,10 @@ def canonical_to_noncanonical_sfile(sfiles, version: int = 2, sfiles_amount: int
     while succes_counter < sfiles_amount and fail_counter < max_failed_attempts:
         temp_set = set()
         try:
-            flowsheet.convert_to_sfiles('v' + str(version), True, False)
+            flowsheet.convert_to_sfiles("v" + str(version), True, False)
             temp_set.add(flowsheet.sfiles)
         except AssertionError:
-            print('Warning: Faulty SFILES created.')
+            print("Warning: Faulty SFILES created.")
 
         # Check if newly generated SFILES is already generated earlier or equal to the provided SFILES.
         if (temp_set | all_sfiles) == all_sfiles:
@@ -53,7 +54,7 @@ def canonical_to_noncanonical_sfile(sfiles, version: int = 2, sfiles_amount: int
     return all_sfiles
 
 
-def canonical_to_noncanonical_txt(version: int = 2, src: str = 'dev_data', sfiles_amount: int = 20):
+def canonical_to_noncanonical_txt(version: int = 2, src: str = "dev_data", sfiles_amount: int = 20):
     """Converts a text file containing canonical SFILES (SFILES line-separated) into non-canonical SFILES and writes to
     results (canonical + noncanonical SFILES) to new text file.
 
@@ -68,20 +69,20 @@ def canonical_to_noncanonical_txt(version: int = 2, src: str = 'dev_data', sfile
     """
 
     all_augmented_sfiles = set()
-    with open(src, 'r') as file:
+    with open(src) as file:
         for line in file:
             sfiles = line[:-1]
             augmented_sfiles = canonical_to_noncanonical_sfile(sfiles, version, sfiles_amount)
             all_augmented_sfiles = augmented_sfiles | all_augmented_sfiles
 
     base = os.path.splitext(src)[0]
-    dst = base + '_augm' + '.txt'
-    with open(dst, 'w+') as file:
+    dst = base + "_augm" + ".txt"
+    with open(dst, "w+") as file:
         for item in list(all_augmented_sfiles):
-            file.write("%s\n" % item)
+            file.write(f"{item}\n")
 
 
-def non_canonical_tester(version: int = 2, src: str = 'dev_data.txt', sfiles_amount: int = 10):
+def non_canonical_tester(version: int = 2, src: str = "dev_data.txt", sfiles_amount: int = 10):
     """Tests the 'canonical_to_noncanonical_sfile' function: Canonical SFILES are converted to non-canonical SFILES and
     thereafter backconverted to canonical SFILES. Check if provided SFILES are equal to backconverted canonical SFILES.
 
@@ -102,7 +103,7 @@ def non_canonical_tester(version: int = 2, src: str = 'dev_data.txt', sfiles_amo
     correct_augmentation = 0
     false_augmentation = 0
 
-    with open(src, 'r') as file:
+    with open(src) as file:
         for line in file:
             correct_counter = 0
             false_counter = 0
@@ -117,18 +118,18 @@ def non_canonical_tester(version: int = 2, src: str = 'dev_data.txt', sfiles_amo
                 flowsheet.create_from_sfiles(item, overwrite_nx=True)
                 # Convert flowsheet to canonical SFILES.
                 try:
-                    flowsheet.convert_to_sfiles('v' + str(version), True, True)
+                    flowsheet.convert_to_sfiles("v" + str(version), True, True)
                 except AssertionError:
-                    print('Warning: Faulty SFILES created.')
+                    print("Warning: Faulty SFILES created.")
 
                 # Check if provided and re-converted to canonical SFILES are equal.
                 if flowsheet.sfiles == sfiles:
                     correct_counter += 1
                 else:
                     false_counter += 1
-                    print(sfiles, '\n')
-                    print(item, '\n')
-                    print(flowsheet.sfiles, '\n')
+                    print(sfiles, "\n")
+                    print(item, "\n")
+                    print(flowsheet.sfiles, "\n")
 
             if correct_counter == len(augmented_sfiles):
                 correct_augmentation += 1

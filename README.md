@@ -16,9 +16,9 @@ For users who want to explore the functionality with the provided demonstrations
 ```sh
 git clone https://github.com/process-intelligence-research/SFILES2.git
 ```
-After creating and activating a new virtual environment (python 3.9), you can use the requirements.txt file to install all required packages:
+After creating and activating a new virtual environment (python 3.9), you can use the pyproject.toml file to install all required packages:
 ```sh
-pip install -r requirements.txt
+pip install .
 ```
 ### Demonstration of functionality
 You can either have a look at the `demonstration.ipynb` which demonstrates SFILES 2.0 strings for a variety of PFDs and P&IDs or run the python file `run_demonstration.py`.

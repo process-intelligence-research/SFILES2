@@ -1,12 +1,9 @@
 __pycache__/
-plots/
 .idea
 .vscode
-run_demonstration_ctrl.py
-Flowsheet_Class/RandomFlowsheetGen_OC
-Real_data
-LM
-ControlPatterns
-Read_ctrl_patterns.py
-run_demonstration_ctrl.py
-/RandomFlowsheetGen_OC/
+dist/
+.venv/
+
+# Project specific directories
+plots/
+Real_flowsheets/

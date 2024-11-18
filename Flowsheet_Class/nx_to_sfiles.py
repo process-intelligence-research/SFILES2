@@ -1,6 +1,7 @@
 import random
-import networkx as nx
 import re
+
+import networkx as nx
 import numpy as np
 
 random.seed(1)
@@ -43,10 +44,10 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags, canonical=True):
     # Edges of signals connected directly to the next unit operation shall not be removed, since they represent both
     # material stream and signal connection.
     flowsheet_wo_signals = flowsheet.copy()
-    edge_information = nx.get_edge_attributes(flowsheet, 'tags')
-    edge_information_signal = {k: flatten(v['signal']) for k, v in edge_information.items() if 'signal' in v.keys()
-                               if v['signal']}
-    edges_to_remove = [k for k, v in edge_information_signal.items() if v == ['not_next_unitop']]
+    edge_information = nx.get_edge_attributes(flowsheet, "tags")
+    edge_information_signal = {k: flatten(v["signal"]) for k, v in edge_information.items() if "signal" in v.keys()
+                               if v["signal"]}
+    edges_to_remove = [k for k, v in edge_information_signal.items() if v == ["not_next_unitop"]]
     flowsheet_wo_signals.remove_edges_from(edges_to_remove)
 
     # Calculation of graph invariant / node ranks
@@ -59,23 +60,23 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags, canonical=True):
 
     # Add an additional virtual node, which is connected to every initial node. Thus, one graph traversal is sufficient
     # to access every node in the graph.
-    flowsheet_wo_signals.add_node('virtual')
-    virtual_edges = [('virtual', i) for i in init_nodes]
+    flowsheet_wo_signals.add_node("virtual")
+    virtual_edges = [("virtual", i) for i in init_nodes]
     flowsheet_wo_signals.add_edges_from(virtual_edges)
-    current_node = 'virtual'
-    ranks['virtual'] = 0
+    current_node = "virtual"
+    ranks["virtual"] = 0
 
     # Nodes in cycle-processes are not determined since their in_degree is greater than zero.
     # Thus, as long as not every node of flowsheet is connected to the virtual node, the node with the lowest rank
     # (which is not a outlet node) is connected to the virtual node.
     flowsheet_undirected = nx.to_undirected(flowsheet_wo_signals)
-    connected_to_virtual = set(nx.node_connected_component(flowsheet_undirected, 'virtual'))
+    connected_to_virtual = set(nx.node_connected_component(flowsheet_undirected, "virtual"))
     not_connected = set(flowsheet_wo_signals.nodes) - connected_to_virtual
     while not_connected:
         rank_not_connected = sort_by_rank(not_connected, ranks, canonical=True)
         rank_not_connected = [k for k in rank_not_connected if flowsheet_wo_signals.out_degree(k) > 0]
-        flowsheet_wo_signals.add_edges_from([('virtual', rank_not_connected[0])])
-        connected_to_virtual = set(nx.node_connected_component(flowsheet_undirected, 'virtual'))
+        flowsheet_wo_signals.add_edges_from([("virtual", rank_not_connected[0])])
+        connected_to_virtual = set(nx.node_connected_component(flowsheet_undirected, "virtual"))
         not_connected = set(flowsheet_wo_signals.nodes) - connected_to_virtual
 
     # Initialization of variables.
@@ -91,18 +92,18 @@ def nx_to_SFILES(flowsheet, version, remove_hex_tags, canonical=True):
                                                               nr_pre_visited, ranks, nodes_position_setoffs,
                                                               nodes_position_setoffs_cycle, special_edges,
                                                               edge_information_signal, first_traversal=True, sfiles=[],
-                                                              node_insertion='', canonical=canonical)
+                                                              node_insertion="", canonical=canonical)
 
     # Flatten nested list of sfile_part
     sfiles = flatten(sfiles)
 
     # SFILES Version 2.0:
-    if version == 'v2':
+    if version == "v2":
         sfiles = SFILES_v2(sfiles, special_edges, edge_information, remove_hex_tags)
 
     # Generalization of SFILES (remove node numbering) as last step
     sfiles_gen = generalize_SFILES(sfiles)
-    sfiles_string_gen = ''.join(sfiles_gen)
+    sfiles_string_gen = "".join(sfiles_gen)
 
     return sfiles_gen, sfiles_string_gen
 
@@ -155,7 +156,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
         Counter variable for cycles.
     """
 
-    if current_node == 'virtual':
+    if current_node == "virtual":
         visited.add(current_node)
         # Traversal order according to ranking of nodes.
         neighbours = sort_by_rank(flowsheet[current_node], ranks, visited, canonical=True)
@@ -166,7 +167,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                                                                       nr_pre_visited, ranks, nodes_position_setoffs,
                                                                       nodes_position_setoffs_cycle, special_edges,
                                                                       edge_information, first_traversal, sfiles,
-                                                                      node_insertion='', canonical=canonical)
+                                                                      node_insertion="", canonical=canonical)
             # First traversal: sfiles_part is equal to sfiles.
             # Further traversals: traversals, which are connected to the first traversal are inserted with '<&|...&|'
             # and independent subgraphs are inserted with 'n|'.
@@ -174,15 +175,15 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                 sfiles.extend(sfiles_part)
                 first_traversal = False
             else:
-                if not node_insertion == '':
-                    sfiles_part.append('|')
-                    sfiles_part.insert(0, '<&|')
+                if not node_insertion == "":
+                    sfiles_part.append("|")
+                    sfiles_part.insert(0, "<&|")
                     pos = position_finder(nodes_position_setoffs, node_insertion, sfiles, nodes_position_setoffs_cycle,
                                           cycle=False)
                     # Insert the branch next to node_insertion.
                     insert_element(sfiles, pos, sfiles_part)
                 else:
-                    sfiles.append('n|')
+                    sfiles.append("n|")
                     sfiles.extend(sfiles_part)
 
             # After last traversal, insert signal connections with recycle notation.
@@ -190,18 +191,18 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                 sfiles = insert_signal_connections(edge_information, sfiles, nodes_position_setoffs_cycle,
                                                    nodes_position_setoffs, special_edges)
 
-    if current_node not in visited and not current_node == 'virtual':
+    if current_node not in visited and not current_node == "virtual":
         successors = list(flowsheet.successors(current_node))
 
         # New branching if current_node has more than one successor.
         if len(successors) > 1:
-            sfiles_part.append('(' + current_node + ')')
+            sfiles_part.append("(" + current_node + ")")
             visited.add(current_node)
             # Branching decision according to ranking of nodes.
             neighbours = sort_by_rank(flowsheet[current_node], ranks, visited, canonical)
             for neighbour in neighbours:
                 if not neighbour == neighbours[-1]:
-                    sfiles_part.append('[')
+                    sfiles_part.append("[")
 
                 if neighbour not in visited:
                     sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet, neighbour,
@@ -212,11 +213,11 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                                                                               first_traversal, sfiles, node_insertion,
                                                                               canonical=canonical)
                     if not neighbour == neighbours[-1]:
-                        sfiles_part.append(']')
+                        sfiles_part.append("]")
 
                 # If neighbor is already visited, that's a direct cycle. Thus, the branch brackets can be removed.
                 elif first_traversal:
-                    if sfiles_part[-1] == '[':
+                    if sfiles_part[-1] == "[":
                         sfiles_part.pop()
                     # A material cycle is represented using the recycle notation with '<#' and '#'.
                     nr_pre_visited, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited, sfiles_part,
@@ -227,17 +228,17 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
                                                                                       inverse_special_edge=False)
 
                 elif not first_traversal:  # Neighbour node in previous traversal.
-                    if sfiles_part[-1] == '[':
+                    if sfiles_part[-1] == "[":
                         sfiles_part.pop()
                     # Only insert sfiles once. If there are multiple backloops to previous traversal,
                     # treat them as cycles. Insert a & sign where branch connects to node of previous traversal.
-                    if node_insertion == '' and '(' + neighbour + ')' not in flatten(sfiles_part):
+                    if node_insertion == "" and "(" + neighbour + ")" not in flatten(sfiles_part):
                         node_insertion = neighbour
                         pos = position_finder(nodes_position_setoffs, current_node, sfiles_part,
                                               nodes_position_setoffs_cycle, cycle=True)
-                        insert_element(sfiles_part, pos, '&')
+                        insert_element(sfiles_part, pos, "&")
                         # Additional info: edge is a new incoming branch edge in SFILES.
-                        special_edges[(current_node, neighbour)] = '&'
+                        special_edges[(current_node, neighbour)] = "&"
 
                     else:
                         nr_pre_visited, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited, sfiles_part,
@@ -249,7 +250,7 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
 
         # Node has only one successor, thus no branching.
         elif len(successors) == 1:
-            sfiles_part.append('(' + current_node + ')')
+            sfiles_part.append("(" + current_node + ")")
             visited.add(current_node)
             sfiles_part, nr_pre_visited, node_insertion, sfiles = dfs(visited, flowsheet, successors[0], sfiles_part,
                                                                       nr_pre_visited, ranks, nodes_position_setoffs,
@@ -259,27 +260,27 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
         # Dead end.
         elif len(successors) == 0:
             visited.add(current_node)
-            sfiles_part.append('(' + current_node + ')')
+            sfiles_part.append("(" + current_node + ")")
 
     # Nodes of previous traversal, this elif case is visited when there is no branching but node of previous traversal.
-    elif not current_node == 'virtual':
+    elif not current_node == "virtual":
         # Incoming branches are inserted at mixing point in SFILES surrounded by '<&|...&|'.
         # Only insert sfiles once. If there are multiple backloops to previous traversal, treat them as cycles.
-        if node_insertion == '' and '(' + current_node + ')' in flatten(sfiles) and not first_traversal:
+        if node_insertion == "" and "(" + current_node + ")" in flatten(sfiles) and not first_traversal:
             # Insert a & sign where branch connects to node of previous traversal.
             node_insertion = current_node
             last_node = last_node_finder(sfiles_part)
             pos = position_finder(nodes_position_setoffs, last_node, sfiles_part, nodes_position_setoffs_cycle,
                                   cycle=True)
-            insert_element(sfiles_part, pos, '&')
+            insert_element(sfiles_part, pos, "&")
             # Additional info: edge is a new incoming branch edge in SFILES.
-            special_edges[(last_node, current_node)] = '&'
+            special_edges[(last_node, current_node)] = "&"
 
         else:  # Incoming branches are referenced with the recycle notation, if there already is a node_insertion.
             nr_pre_visited, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited, sfiles_part, sfiles,
                                                                               special_edges, nodes_position_setoffs,
                                                                               nodes_position_setoffs_cycle,
-                                                                              current_node, node2='last_node',
+                                                                              current_node, node2="last_node",
                                                                               inverse_special_edge=False)
 
     return sfiles_part, nr_pre_visited, node_insertion, sfiles
@@ -325,30 +326,30 @@ def insert_cycle(nr_pre_visited, sfiles_part, sfiles, special_edges, nodes_posit
     """
 
     # Check if incoming cycle is connected to node of current traversal or previous traversal.
-    if '(' + node1 + ')' not in flatten(sfiles_part):
+    if "(" + node1 + ")" not in flatten(sfiles_part):
         pos1 = position_finder(nodes_position_setoffs, node1, sfiles, nodes_position_setoffs_cycle, cycle=False)
         nr_pre_visited += 1
-        insert_element(sfiles, pos1, '<' + ('_' if signal else '') + str(nr_pre_visited))
+        insert_element(sfiles, pos1, "<" + ("_" if signal else "") + str(nr_pre_visited))
     else:
         pos1 = position_finder(nodes_position_setoffs, node1, sfiles_part, nodes_position_setoffs_cycle, cycle=False)
         nr_pre_visited += 1
-        insert_element(sfiles_part, pos1, '<' + ('_' if signal else '') + str(nr_pre_visited))
+        insert_element(sfiles_part, pos1, "<" + ("_" if signal else "") + str(nr_pre_visited))
 
-    if node2 == 'last_node':
+    if node2 == "last_node":
         node2 = last_node_finder(sfiles_part)
     pos2 = position_finder(nodes_position_setoffs, node2, sfiles_part, nodes_position_setoffs_cycle, cycle=True)
 
     # According to SMILES notation, for two digit cycles a % sign is put before the number (not required for signals).
     if nr_pre_visited > 9 and not signal:
-        insert_element(sfiles_part, pos2, '%' + str(nr_pre_visited))
+        insert_element(sfiles_part, pos2, "%" + str(nr_pre_visited))
     else:
-        insert_element(sfiles_part, pos2, ('_' if signal else '') + str(nr_pre_visited))
+        insert_element(sfiles_part, pos2, ("_" if signal else "") + str(nr_pre_visited))
 
     # Additional info: edge is marked as a cycle edge in SFILES.
     if inverse_special_edge:
-        special_edges[(node1, node2)] = ('%' if nr_pre_visited > 9 else '') + str(nr_pre_visited)
+        special_edges[(node1, node2)] = ("%" if nr_pre_visited > 9 else "") + str(nr_pre_visited)
     else:
-        special_edges[(node2, node1)] = ('%' if nr_pre_visited > 9 else '') + str(nr_pre_visited)
+        special_edges[(node2, node1)] = ("%" if nr_pre_visited > 9 else "") + str(nr_pre_visited)
 
     return nr_pre_visited, special_edges, sfiles_part, sfiles
 
@@ -377,7 +378,7 @@ def SFILES_v2(sfiles, special_edges, edge_information, remove_hex_tags=False):
 
     sfiles_v2 = sfiles.copy()
     if remove_hex_tags:  # Only save the column related tags.
-        edge_information = {k: {'col': v['col']} for k, v in edge_information.items() if 'col' in v.keys()}
+        edge_information = {k: {"col": v["col"]} for k, v in edge_information.items() if "col" in v.keys()}
     edge_information = {k: flatten(v.values()) for k, v in edge_information.items()}  # Merge he and col tags.
     edge_information = {k: v for k, v in edge_information.items() if v}  # Filter out empty tags lists.
 
@@ -385,36 +386,36 @@ def SFILES_v2(sfiles, special_edges, edge_information, remove_hex_tags=False):
         # First assign edge attributes to nodes.
         for e, at in edge_information.items():
             # e: edge-tuple (in_node name, out_node name); at: attribute
-            if type(at) == str:
+            if type(at) is str:
                 at = [at]
             in_node = e[0]
             out_node = e[1]
             if e in special_edges:
                 edge_type = str(special_edges[e])
             else:
-                edge_type = 'normal'
-            tags = '{' + '}{'.join(at) + '}'  # Every single tag of that stream inserted in own braces.
+                edge_type = "normal"
+            tags = "{" + "}{".join(at) + "}"  # Every single tag of that stream inserted in own braces.
 
             # Search position where to insert tag.
-            if edge_type == 'normal':
+            if edge_type == "normal":
                 for s_idx, s in enumerate(sfiles_v2):
-                    if s == '(' + out_node + ')':
+                    if s == "(" + out_node + ")":
                         sfiles_v2.insert(s_idx, tags)
                         break
             # Search the right & sign.
-            elif edge_type == '&':
+            elif edge_type == "&":
                 search_and = False
                 for s_idx, s in enumerate(sfiles_v2):
-                    if s == '(' + in_node + ')':
+                    if s == "(" + in_node + ")":
                         search_and = True
                         counter = 0
                     if search_and:
-                        if s == '&' and counter == 0:  # No second branch within branch with <&| notation.
+                        if s == "&" and counter == 0:  # No second branch within branch with <&| notation.
                             sfiles_v2.insert(s_idx, tags)
                             break
-                        if s == '&' and counter > 0:
+                        if s == "&" and counter > 0:
                             counter -= 1
-                        if s == '<&|':
+                        if s == "<&|":
                             counter += 1
             else:  # Edge_type > 0 recycle edge, so we search for the corresponding recycle number.
                 for s_idx, s in enumerate(sfiles_v2):
@@ -426,24 +427,24 @@ def SFILES_v2(sfiles, special_edges, edge_information, remove_hex_tags=False):
     # e.g. (hex){1}...(hex){1}. Networkx node names indicate heat integration with slash, e.g. hex-1/1 and hex-1/2.
     HI_eqs = []  # Heat integrated heat exchangers
     for s_idx, s in enumerate(sfiles_v2):
-        if 'hex' in s and '/' in s:
-            heatexchanger = s.split(sep='/')[0][1:]
+        if "hex" in s and "/" in s:
+            heatexchanger = s.split(sep="/")[0][1:]
             if heatexchanger not in HI_eqs:
                 HI_eqs.append(heatexchanger)
     _HI_counter = 1
     for heatexchanger in HI_eqs:
-        indices = [i for i, x in enumerate(sfiles_v2) if x.split(sep='/')[0][1:] == heatexchanger]
+        indices = [i for i, x in enumerate(sfiles_v2) if x.split(sep="/")[0][1:] == heatexchanger]
         for i in indices:
             previous = sfiles_v2[i]
-            sfiles_v2[i] = [previous, '{' + str(_HI_counter) + '}']
+            sfiles_v2[i] = [previous, "{" + str(_HI_counter) + "}"]
         sfiles_v2 = flatten(sfiles_v2)
         _HI_counter += 1
 
     # Store information about control structure in stream tag.
     for s_idx, s in enumerate(sfiles_v2):
-        if 'C' in s and '/' in s:
-            insert_element(sfiles_v2, [s_idx], '{' + str(s.split(sep='/')[1][:-1]) + '}')
-            sfiles_v2[s_idx] = s.split(sep='/')[0] + ')'
+        if "C" in s and "/" in s:
+            insert_element(sfiles_v2, [s_idx], "{" + str(s.split(sep="/")[1][:-1]) + "}")
+            sfiles_v2[s_idx] = s.split(sep="/")[0] + ")"
 
     return sfiles_v2
 
@@ -464,8 +465,8 @@ def generalize_SFILES(sfiles):
 
     sfiles_gen = sfiles.copy()
     for i, s in enumerate(sfiles_gen):
-        if bool(re.match(r'\(.*?\)', s)):
-            sfiles_gen[i] = s.split(sep='-')[0] + ')'
+        if bool(re.match(r"\(.*?\)", s)):
+            sfiles_gen[i] = s.split(sep="-")[0] + ")"
 
     return sfiles_gen
 
@@ -580,9 +581,9 @@ def calc_graph_invariant(flowsheet):
         for key, value in k_v_exchanged_sorted.items():
             ranks_list.append(value)
 
-        edge_information = nx.get_edge_attributes(flowsheet, 'tags')
-        edge_information_col = {k: flatten(v['col']) for k, v in edge_information.items() if 'col' in v.keys() if
-                                v['col']}
+        edge_information = nx.get_edge_attributes(flowsheet, "tags")
+        edge_information_col = {k: flatten(v["col"]) for k, v in edge_information.items() if "col" in v.keys() if
+                                v["col"]}
 
         # 2. We afterwards sort the nested lists (same rank). This is the tricky part of breaking the ties.
         for pos, eq_ranked_nodes in enumerate(ranks_list):
@@ -600,7 +601,7 @@ def calc_graph_invariant(flowsheet):
                 sorted_edges = []
                 for k in range(0, len(eq_ranked_nodes)):
                     edges = sorted(list(dfs_trees[k].edges), key=lambda element: (element[0], element[1]))
-                    edges = [(k.split(sep='-')[0], v.split(sep='-')[0]) for k, v in edges]
+                    edges = [(k.split(sep="-")[0], v.split(sep="-")[0]) for k, v in edges]
                     sorted_edge = sorted(edges, key=lambda element: (element[0], element[1]))
                     sorted_edge = [i for sub in sorted_edge for i in sub]
 
@@ -609,7 +610,7 @@ def calc_graph_invariant(flowsheet):
                         if edge[0] == eq_ranked_nodes[k] or edge[1] == eq_ranked_nodes[k]:
                             edge_tags.append(tag[0])
 
-                    edge_tags = ''.join(sorted(edge_tags))
+                    edge_tags = "".join(sorted(edge_tags))
                     if edge_tags:
                         sorted_edge.insert(0, edge_tags)
                     sorted_edges.append(sorted_edge)
@@ -660,7 +661,7 @@ def position_finder(nodes_position_setoffs, node, sfiles, nodes_position_setoffs
     """
 
     # If the node is not found, it is in a nested list: Function to find positions in nested list is utilized.
-    indices = find_nested_indices(sfiles, '(' + node + ')')
+    indices = find_nested_indices(sfiles, "(" + node + ")")
 
     if cycle:
         # This ensures that # are always listed before <#.
@@ -690,10 +691,10 @@ def last_node_finder(sfiles):
         Name of last node.
     """
 
-    last_node = ''
+    last_node = ""
 
     for element in reversed(sfiles):
-        if element.startswith('(') and element.endswith(')'):
+        if element.startswith("(") and element.endswith(")"):
             last_node = element[1:-1]
             break
 
@@ -743,13 +744,13 @@ def find_nested_indices(nested_list, node):
     temp_list = nested_list.copy()
     indices = []
     if node not in flatten(nested_list):
-        raise KeyError('Node not in nested list!')
+        raise KeyError("Node not in nested list!")
     while True:
         try:
             pos = temp_list.index(node)
             indices.append(pos)
             break
-        except:
+        except ValueError:
             for idx, i in enumerate(temp_list):
                 if node in flatten(i):
                     temp_list = i.copy()
@@ -797,13 +798,13 @@ def rank_by_dfs_tree(dfs_trees_generalized):
     other_nodes = {}
 
     for n, s in dfs_trees_generalized.items():
-        succ_str = ''.join(list(s))
+        succ_str = "".join(list(s))
 
-        if 'prod' in n:
+        if "prod" in n:
             output_nodes[n] = (len(dfs_trees_generalized[n]), succ_str)
-        elif 'raw' in n:
+        elif "raw" in n:
             input_nodes[n] = (len(dfs_trees_generalized[n]), succ_str)
-        elif bool(re.match(r'C-\d+', n)):
+        elif bool(re.match(r"C-\d+", n)):
             signal_nodes[n] = (len(dfs_trees_generalized[n]), succ_str)
         else:
             other_nodes[n] = (len(dfs_trees_generalized[n]), succ_str)
@@ -814,13 +815,13 @@ def rank_by_dfs_tree(dfs_trees_generalized):
     sorted_nodes = []
     for d in [signal_nodes, output_nodes, input_nodes]:
         # 3 sort criteria in that order list length (- sign), then generalized string alphabetically, then node number.
-        sorted_nodes_sub = sorted(d, key=lambda k: (-d[k][0], d[k][1], int(re.split('[-/]', k)[1])))
+        sorted_nodes_sub = sorted(d, key=lambda k: (-d[k][0], d[k][1], int(re.split("[-/]", k)[1])))
         sorted_nodes.extend(sorted_nodes_sub)  # Implies the order of first signal then output and input nodes.
 
     # Other nodes: 3 sort criteria in that order list length (+ sign), then generalized string alphabetically,
     # then node number
     sorted_nodes_sub = sorted(other_nodes,
-                              key=lambda k: (other_nodes[k][0], other_nodes[k][1], int(re.split('[-/]', k)[1])))
+                              key=lambda k: (other_nodes[k][0], other_nodes[k][1], int(re.split("[-/]", k)[1])))
     sorted_nodes.extend(sorted_nodes_sub)  # Implies the order of first signal, then output, input, and other nodes.
 
     return sorted_nodes
@@ -869,7 +870,7 @@ def insert_signal_connections(edge_infos_signal, sfiles, nodes_position_setoffs_
         #nodes_position_setoffs_cycle = nodes_position_setoffs_cycle.fromkeys(nodes_position_setoffs_cycle, 0)
         #nodes_position_setoffs = nodes_position_setoffs_cycle.fromkeys(nodes_position_setoffs, 0)
         for k, v in special_edges.items():
-            if v == '&':
+            if v == "&":
                 nodes_position_setoffs[k[1]] = 0
 
         # Sort the signal nodes according to their position in the SFILES.
