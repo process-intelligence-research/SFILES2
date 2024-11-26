@@ -53,16 +53,18 @@ class Flowsheet:
         elif sfiles_list_in:
             self.create_from_sfiles()
 
-    def add_unit(self, unique_name=None):
+    def add_unit(self, unique_name:str=None, **kwargs):
         """This method adds a new unit as a new node to the existing flowsheet-graph.
 
         Parameter
         ---------
         unique_name: str, default=None
             Unique name of the unit, e.g. 'hex-1'.
+        kwargs:
+            Parameters of new unit as node attributes.
         """
 
-        self.state.add_node(unique_name)
+        self.state.add_node(unique_name, **kwargs)
 
     def add_stream(self, node1, node2, tags={"he": [], "col": []}):
         """Method adds a stream as an edge to the existing flowsheet graph, thereby connecting two unit operations
