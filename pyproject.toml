@@ -26,13 +26,13 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "matplotlib==3.8.4",
-    "networkx==3.2.1",
-    "numpy==2.1.3",
-    "tabulate==0.8.9",
-    "pyflowsheet~=0.2.2",
-    "pathfinding==1.0.1",
-    "ipython~=7.30.1",
+    "matplotlib>=3.8.4",
+    "networkx>=3.2.1",
+    "numpy>=2.1.3",
+    "tabulate>=0.8.9",
+    "pyflowsheet>=0.2.2",
+    "pathfinding>=1.0.1",
+    "ipython>=7.30.1",
     "ipykernel",
 ]
 
