@@ -562,15 +562,13 @@ class Flowsheet:
         so it is possible to split nodes again later.
         """
         
-        heatexchanger = "hex"   # > As OntoCapeNames is not an argument in this function.
-        
         relabel_mapping = {}
         create_tags_map = {}
         node_attrs_map = {}
         state_copy = self.state.copy()      # > So we don't alter the state if an error happens.
         # > List nodes which we want to merge:
         for n, node_attrs in state_copy.nodes(data=True):
-            if (heatexchanger in n) \
+            if (("hex" in n) or ("HeatExchanger" in n)) \
             and "/" in n \
             and not bool(re.match(r".*/[A-Z]+", n)):  
                 relabel_mapping[n] = n.split(sep="/")[0]    # > {"hex-1/2": "hex-1"}
@@ -621,7 +619,7 @@ class Flowsheet:
                     node_attrs_map[n2][n1] = node_attrs_map[n1]
             
             # > When creating new edges, must be careful if one of them is a decoupled hex too!
-            if heatexchanger in edge_in[0] \
+            if (("hex" in edge_in[0]) or ("HeatExchanger" in edge_in[0])) \
             and "/" in edge_in[0] \
             and not bool(re.match(r".*/[A-Z]+", edge_in[0])):
                 new_edges.append(
@@ -630,7 +628,7 @@ class Flowsheet:
                 new_edges.append(
                     (edge_in[0], n2, edge_in_attrs))
                 
-            if heatexchanger in edge_out[1] \
+            if (("hex" in edge_out[1]) or ("HeatExchanger" in edge_out[1])) \
             and "/" in edge_out[1] \
             and not bool(re.match(r".*/[A-Z]+", edge_out[1])):
                 new_edges.append(
