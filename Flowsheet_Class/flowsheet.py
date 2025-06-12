@@ -66,7 +66,7 @@ class Flowsheet:
 
         self.state.add_node(unique_name, **kwargs)
 
-    def add_stream(self, node1, node2, tags={"he": [], "col": []}):
+    def add_stream(self, node1, node2, tags={"he": [], "col": []}, **kwargs):
         """Method adds a stream as an edge to the existing flowsheet graph, thereby connecting two unit operations
         (nodes).
 
@@ -79,9 +79,11 @@ class Flowsheet:
         tags: dict
             Tags for that stream, of following form: {'he':[],'col':[]}, i.e heat exchanger related tags
             (hot_in,cold_out, ...) and column related tags (t_out,b_out, ...).
+        kwargs:
+            Parameters of new stream as edge attributes.
         """
 
-        self.state.add_edge(node1, node2, tags=tags)
+        self.state.add_edge(node1, node2, tags=tags, **kwargs)
 
     def create_from_sfiles(self, sfiles_in="", overwrite_nx=False, merge_HI_nodes=True):
         """Function to read SFILES (parsed or unparsed) and creates units (without child objects) and streams. Result is
