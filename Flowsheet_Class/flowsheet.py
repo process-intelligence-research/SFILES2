@@ -2,6 +2,7 @@ import re
 import warnings
 
 import networkx as nx
+from typing import Literal
 
 from .nx_to_sfiles import nx_to_SFILES
 from .OntoCape_SFILES_mapping import OntoCape_SFILES_map
@@ -521,47 +522,144 @@ class Flowsheet:
 
         self.flowsheet_SFILES_names = flowsheet_SFILES
 
+    @staticmethod
+    def get_he_tag(edge: tuple[str, str, dict], edge_type: Literal["in", "out"]) -> str:
+        """Fetch the "in" or "out" hex tag of a given edge, while
+        asserting that only one tag of the type is present.
+
+        Parameters
+        ----------
+        edge: The edge tuple (out_unit, in_unit, atrtibutes).
+        edge_type: Either "in" or "out", specifying the edge type.
+
+        Returns
+        -------
+        The tag without the "_in" (or "_out").
+
+        Examples
+        --------
+        >>> edge = ("hex-1", "hex-2", {"tags": {"he": ["1_in", "2_out"]}})
+        >>> Flowsheet.get_he_tag(edge, "in")
+        1
+        >>> Flowsheet.get_he_tag(edge, "out")
+        2
+        """
+
+        if edge_type not in ["in", "out"]:
+            raise ValueError(f'Only "in" and "out" values allowed for "edge_type" argument. Received: {edge_type}.')
+
+        # > Get hex tags:
+        he_tags = edge[-1]["tags"]["he"]
+
+        # > Get "in" tag, also verify that there is exactly one in tag:
+        type_tags = [tag for tag in he_tags if edge_type in tag]
+        if len(type_tags) != 1:
+            raise RuntimeError(f'> Number of "{edge_type}" tags for edge {edge} != 1: {he_tags}')
+
+        tag = type_tags[0].split(f"_{edge_type}")[0]  # > ["1_in"] -> "1"
+        return tag
+    
     def merge_HI_nodes(self):
         """For non-ontocape conform SFILES merge heat integrated hex nodes into one node and creating connectivity tags,
         so it is possible to split nodes again later.
         """
-
+        
         relabel_mapping = {}
         create_tags_map = {}
-        state_copy = self.state.copy()
-        for n in list(state_copy.nodes):
-            if "/" in n and not bool(re.match(r".*/[A-Z]+", n)):
-                relabel_mapping[n] = n.split(sep="/")[0]
-                create_tags_map[n] = n.split(sep="/")[1]
+        node_attrs_map = {}
+        state_copy = self.state.copy()      # > So we don't alter the state if an error happens.
+        # > List nodes which we want to merge:
+        for n, node_attrs in state_copy.nodes(data=True):
+            if (("hex" in n) or ("HeatExchanger" in n)) \
+            and "/" in n \
+            and not bool(re.match(r".*/[A-Z]+", n)):  
+                relabel_mapping[n] = n.split(sep="/")[0]    # > {"hex-1/2": "hex-1"}
+                create_tags_map[n] = n.split(sep="/")[1]    # > {"hex-1/2": "2"}
+                node_attrs_map[n] = node_attrs              # > {"hex-1/2": {}}
+            
+        nodes_to_remove = list(relabel_mapping.keys())      # > ["hex-1/1", "hex-1/2", ...]
+        new_edges = []
+        new_nodes = []
+        for n1, n2 in relabel_mapping.items():      # > n1 = "hex-1/2", n2 = "hex-1"
+            counter = create_tags_map[n1]           # counter = "2"
+            
+            # > Verify that each node only has one in edge and get its attributes:
+            edges_in = list(state_copy.in_edges(n1, data=True))
+            assert len(edges_in) == 1
+            edge_in = edges_in[0]
+            edge_in_attrs = edge_in[-1]
+            if f"{counter}_in" not in edge_in_attrs["tags"]["he"]:
+                edge_in_attrs["tags"]["he"].append(f"{counter}_in")
 
-        for n1, n2 in relabel_mapping.items():
-            counter = create_tags_map[n1]
-            edge_infos = nx.get_edge_attributes(state_copy, "tags")
-            edge_in = list(state_copy.in_edges(n1))
-            edge_out = list(state_copy.out_edges(n1))
-            edge_infos_in = [v for k, v in edge_infos.items() if k in edge_in][0]  # Only one item
-            edge_infos_in["he"].append(f"{counter}_in")
-            edge_infos_out = [v for k, v in edge_infos.items() if k in edge_out][0]  # Only one item
-            edge_infos_out["he"].append("{counter}_out")
-
+            # > Verify that each node only has one out edge and get its attributes:
+            edges_out = list(state_copy.out_edges(n1, data=True))
+            assert len(edges_out) == 1
+            edge_out = edges_out[0]
+            edge_out_attrs = edge_out[-1]
+            if f"{counter}_out" not in edge_out_attrs["tags"]["he"]:
+                edge_out_attrs["tags"]["he"].append(f"{counter}_out")
+            
             # Remove old node and delete old edges + create new node if it does not exist and edges.
-            state_copy.remove_node(n1)
-            if n2 not in list(state_copy.nodes):
-                state_copy.add_node(n2)
-            state_copy.add_edges_from([(edge_in[0][0], n2, {"tags": edge_infos_in}),
-                                       (n2, edge_out[0][1], {"tags": edge_infos_out})])
-
-        if len(state_copy.edges) == len(self.state.edges):  # This has to be still equal, otherwise merge failed.
-            self.state = state_copy
-        else:
-            print("Warning: seems like two streams of heat exchanger are connected to same unit operation and in have "
-                  "same edge directions. No merging in NetworkX possible")
-
+            if n2 not in new_nodes:    
+                new_nodes.append(n2)
+                node_attrs_map[n2] = {n1: node_attrs_map[n1]}
+            else:
+                # > Add this entry to the node attributes.
+                # > Let's check if it these attributes are equal to the attributes
+                # > a previous node (e.g., if the attributes of hex-1/1 are the same
+                # > as those for hex-1/2):
+                for key, value in node_attrs_map[n2].items():   # > Looping through node_attrs_map["hex-1"]
+                    if value == node_attrs_map[n1]:             # > node_attrs_map["hex-1"]["hex-1/1"] == node_attrs_map["hex-1/2"]
+                        node_attrs_map[f"{key}, {n1}"] = node_attrs_map[n1]     # > In that case, we'll create entry node_attrs_map["hex-1"]["hex-1/1, hex-1/2"]
+                        del node_attrs_map[key] # and delete node_attrs_map["hex-1"]["hex-1/1"]
+                        # > note we can't have node_attrs_map["hex-1"][ ["hex-1/1", ...] ] because lists can't be dictionary keys.
+                        # > Later, we'll verify if there is only one key for node_attrs_map["hex-1"]
+                        break                   
+                else:
+                    # > If we got here, then we didn't break from the for loop
+                    # > and the attributes are different from other the nodes'
+                    node_attrs_map[n2][n1] = node_attrs_map[n1]
+            
+            # > When creating new edges, must be careful if one of them is a decoupled hex too!
+            if (("hex" in edge_in[0]) or ("HeatExchanger" in edge_in[0])) \
+            and "/" in edge_in[0] \
+            and not bool(re.match(r".*/[A-Z]+", edge_in[0])):
+                new_edges.append(
+                    (edge_in[0].split("/")[0], n2, edge_in_attrs))
+            else:
+                new_edges.append(
+                    (edge_in[0], n2, edge_in_attrs))
+                
+            if (("hex" in edge_out[1]) or ("HeatExchanger" in edge_out[1])) \
+            and "/" in edge_out[1] \
+            and not bool(re.match(r".*/[A-Z]+", edge_out[1])):
+                new_edges.append(
+                    (n2, edge_out[1].split("/")[0], edge_out_attrs))
+            else:
+                new_edges.append(
+                    (n2, edge_out[1], edge_out_attrs))
+        
+        state_copy.remove_nodes_from(nodes_to_remove)
+        # Before adding new nodes, let's handle the node attributes:
+        for node in new_nodes:
+            if len(node_attrs_map[node]) == 1:
+                key = list(node_attrs_map[node])[0]
+                node_attrs_map[node] = node_attrs_map[node][key]
+        new_nodes = [(node, node_attrs_map[node]) for node in new_nodes]
+        state_copy.add_nodes_from(new_nodes)
+        state_copy.add_edges_from(new_edges)
+        self.state = state_copy
+        # if len(state_copy.edges) == len(self.state.edges):  # This has to be still equal, otherwise merge failed.
+        #     self.state = state_copy
+        # else:
+        #     print("Warning: seems like two streams of heat exchanger are connected to same unit operation and in have "
+        #           "same edge directions. No merging in NetworkX possible")
+        
     def split_HI_nodes(self, OntoCapeNames=False):
         """Heat integrated heat exchanger nodes are splitted. (Only if there is a multistream heat exchanger node with
         corresponding he tags)
         """
-
+        
         if OntoCapeNames:
             heatexchanger = "HeatExchanger"
         else:
@@ -575,65 +673,68 @@ class Flowsheet:
         edges_to_remove = [k for k, v in edge_information_signal.items() if v == ["not_next_unitop"]]
         flowsheet_wo_signals.remove_edges_from(edges_to_remove)
 
-        for n in list(self.state.nodes):
+        nodes_to_remove = []    # > We'll remove nodes only at the end, to avoid issues with changing the size of the graph during iterations
+        new_nodes = []
+        new_edges = []
+        for n, node_attrs in flowsheet_wo_signals.nodes(data=True):
             if heatexchanger in n and flowsheet_wo_signals.in_degree(n) > 1:  # Heat exchangers with more than 1 streams
-                #assert (flowsheet_wo_signals.out_degree(n) == flowsheet_wo_signals.in_degree(n))
-                edge_infos = nx.get_edge_attributes(self.state, "tags")
-                edges_in = list(self.state.in_edges(n))
-                edges_out = list(self.state.out_edges(n))
-
-                # Edges with infos only for that heat exchanger.
-                edge_infos_he_in = {k: v for k, v in edge_infos.items() if k in edges_in}
-                # Edges with infos only for that heat exchanger.
-                edge_infos_he_out = {k: v for k, v in edge_infos.items() if k in edges_out}
-
+                
+                edges_in = flowsheet_wo_signals.in_edges(n, data=True)
+                edges_out = flowsheet_wo_signals.out_edges(n, data=True)
+                if len(edges_in) != len(edges_out):
+                    warnings.warn(
+                        f"Skipping decoupling of heat exchanger {n}: Number of in_edges != out_edges."
+                        f"in_edges: {edges_in};"
+                        f"out_edges: {edges_out}."
+                    )
+                    continue
+                
+                nodes_to_remove.append(n)   # > We'll make all changes at the very end.
+                
                 # Here we try to match the inlet with their corresponding outlet streams using the tags.
                 # (This works for tags of the form hot_in,hot_out,cold_in,cold_out,1_in,1_out, ...)
-                try:
-                    assert (len(edge_infos_he_in.keys()) == len(edges_in))
-                    assert (len(edge_infos_he_out.keys()) == len(edges_out))
-                    # Sort by he_tags -> cold and hot substring is used for sorting.
-                    edges_in_sorted = dict(sorted(edge_infos_he_in.items(),
-                                                  key=lambda item: [s for s in item[1]["he"] if "in" in s][0]))
-                    # Sort by he_tags -> cold and hot string is used.
-                    edges_out_sorted = dict(sorted(edge_infos_he_out.items(),
-                                                   key=lambda item: [s for s in item[1]["he"] if "out" in s][0]))
-                    heat_exchanger_subs_in = self.split_dictionary(edges_in_sorted, 1)  # Splits for each stream
-                    heat_exchanger_subs_out = self.split_dictionary(edges_out_sorted, 1)  # Splits for each stream
-                    heat_exchanger_subs = [{**heat_exchanger_subs_in[i], **heat_exchanger_subs_out[i]}
-                                           for i in range(0, len(heat_exchanger_subs_in))]
-                    new_nodes = []
-                    new_edges = []
-
-                    # TODO: Test if this is correct.
-                    hex_sub_temp = False
-                    for i, hex_sub in enumerate(heat_exchanger_subs):
-                        new_node = n + "/%d" % (i + 1)
-                        new_nodes.append(new_node)  # Nodes
-
-                        for old_edge, attributes in hex_sub.items():
-                            if hex_sub_temp == hex_sub.get(old_edge):
-                                continue
-                            else:
-                                # Check if heat exchanger is connected to itself.
-                                if old_edge[0] == old_edge[1]:
-                                    new_node_2 = n + "/%d" % (i + 2)
-                                    new_edge = (new_node, new_node_2)
-                                    hex_sub_temp = hex_sub.get(old_edge)
-                                else:
-                                    new_edge = tuple(s if s != n else new_node for s in old_edge)
-                                    # new_edge = tuple(map(lambda i: str.replace(i, n,new_node), old_edge))
-                                # edges with attributes
-                                new_edges.append((new_edge[0], new_edge[1], {"tags": attributes}))
-
-                    # Delete old node and associated edges first.
-                    self.state.remove_node(n)
-                    self.state.add_nodes_from(new_nodes)
-                    self.state.add_edges_from(new_edges)
-                except Exception:
-                    warnings.warn("Warning: No he tags (or not of all connected edges) found for this multistream "
-                                  "heat exchanger. The multi-stream heat exchanger will be represented as one node.",
-                                  DeprecationWarning)
+                for in_edge in edges_in:
+                    in_tag = Flowsheet.get_he_tag(in_edge, "in")
+                    
+                    # > Now Loop on out_edges and find associated out_tag:
+                    for out_edge in edges_out:
+                        out_tag = Flowsheet.get_he_tag(out_edge, "out")
+                        if out_tag == in_tag:
+                            # > We've found the associated out_tag to our in_tag !
+                            break
+                    else:
+                        # This means we didn't break from the for loop:
+                        raise RuntimeError(f"> Couldn't find out tag {in_tag}_out for heat exchanger {n}!\nin_edges: {edges_in},\nout_edges:{edges_out}")
+                    
+                    # > Ok, so we've found the associated out_edge to the in_edge! 
+                    # > Let's add the new edges and nodes:
+                    new_nodes.append((f"{n}/{in_tag}", node_attrs))             # hex-1 --> hex-1/1
+                    
+                    # > ATTENTION WHEN CREATING NEW EDGES !
+                    # > Possible issue if the hex is connected to another hex or itself!
+                    if heatexchanger in in_edge[0]:
+                        extra_tag = Flowsheet.get_he_tag(in_edge, "out")
+                        new_edges.append(
+                            (f"{in_edge[0]}/{extra_tag}", f"{in_edge[1]}/{in_tag}", in_edge[-1]))
+                    else:
+                        new_edges.append(
+                            (in_edge[0], f"{in_edge[1]}/{in_tag}", in_edge[-1]))
+                    
+                    if heatexchanger in out_edge[1]:
+                        extra_tag = Flowsheet.get_he_tag(out_edge, "in")
+                        new_edges.append(
+                            (f"{out_edge[0]}/{out_tag}", f"{out_edge[1]}/{extra_tag}", out_edge[-1]))
+                    else:
+                        new_edges.append(
+                            (f"{out_edge[0]}/{out_tag}", out_edge[1], out_edge[-1]))
+        
+        state_copy = self.state.copy()      # > Avoiding changing the state if an issue arises in the next lines 
+        # Delete old nodes and associated edges first.
+        state_copy.remove_nodes_from(nodes_to_remove)
+        # > Add new ones:
+        state_copy.add_nodes_from(new_nodes)
+        state_copy.add_edges_from(new_edges)
+        self.state = state_copy             # > If we got here then ok
 
     def map_Ontocape_to_SFILES(self):
         """Function that returns a graph with the node names according to SFILES abbreviations for OntoCape unit
