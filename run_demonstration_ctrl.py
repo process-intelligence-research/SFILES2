@@ -140,11 +140,11 @@ class TestSFILESctrl(unittest.TestCase):
         self.SFILESctrl(test_case, edges)
 
     def SFILESctrl(self, test_case, edges):
-        graph = nx.DiGraph()
+        graph = nx.MultiDiGraph()
         graph.add_edges_from(edges)
 
         flowsheet = Flowsheet()
-        flowsheet.state = graph
+        flowsheet.create_from_nx(graph)
         flowsheet.convert_to_sfiles()
         sfilesctrl1 = flowsheet.sfiles
         flowsheet.create_from_sfiles(sfilesctrl1, overwrite_nx=True)

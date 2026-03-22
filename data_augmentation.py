@@ -1,7 +1,7 @@
 import os
 import random
 
-from SFILES2.Flowsheet_Class.flowsheet import Flowsheet
+from Flowsheet_Class.flowsheet import Flowsheet
 
 random.seed(1)
 
@@ -54,7 +54,7 @@ def canonical_to_noncanonical_sfile(sfiles, version: int = 2, sfiles_amount: int
     return all_sfiles
 
 
-def canonical_to_noncanonical_txt(version: int = 2, src: str = "dev_data", sfiles_amount: int = 20):
+def canonical_to_noncanonical_txt(version: int = 2, src: str = "Real_flowsheets/dev_data.txt", sfiles_amount: int = 20):
     """Converts a text file containing canonical SFILES (SFILES line-separated) into non-canonical SFILES and writes to
     results (canonical + noncanonical SFILES) to new text file.
 
@@ -82,7 +82,7 @@ def canonical_to_noncanonical_txt(version: int = 2, src: str = "dev_data", sfile
             file.write(f"{item}\n")
 
 
-def non_canonical_tester(version: int = 2, src: str = "dev_data.txt", sfiles_amount: int = 10):
+def non_canonical_tester(version: int = 2, src: str = "Real_flowsheets/dev_data.txt", sfiles_amount: int = 10):
     """Tests the 'canonical_to_noncanonical_sfile' function: Canonical SFILES are converted to non-canonical SFILES and
     thereafter backconverted to canonical SFILES. Check if provided SFILES are equal to backconverted canonical SFILES.
 
@@ -108,8 +108,8 @@ def non_canonical_tester(version: int = 2, src: str = "dev_data.txt", sfiles_amo
             correct_counter = 0
             false_counter = 0
 
-            # sfiles = line[:-2]
-            sfiles = line[:-1]
+            sfiles = line[:-2] # > Ignoring "." and "\n"
+            # sfiles = line[:-1]
             augmented_sfiles = canonical_to_noncanonical_sfile(sfiles, version, sfiles_amount)
 
             for item in augmented_sfiles:
@@ -136,3 +136,10 @@ def non_canonical_tester(version: int = 2, src: str = "dev_data.txt", sfiles_amo
             else:
                 false_augmentation += 1
     return correct_augmentation / (correct_augmentation + false_augmentation) * 100
+
+
+if __name__ == "__main__":
+    try:
+        print("Percentage of correctly converted SFILES on Real_flowsheets/all_data.txt:", non_canonical_tester(src="Real_flowsheets/all_data.txt"))
+    except FileNotFoundError:
+        print("Before running this python script, please run Real_flowsheets/test_and_load_new_data.py.")

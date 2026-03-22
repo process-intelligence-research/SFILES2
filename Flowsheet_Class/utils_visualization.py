@@ -35,7 +35,7 @@ def create_stream_table(graph, chemicalspecies, decimals):
     header.extend(chemicalspecies)
 
     table_data = [header]
-    for edge in graph.edges:
+    for edge in graph.edges(keys=True):
         stream_list = []
         stream_list.append(graph.get_edge_data(*edge)["processstream_name"])
         stream_data = graph.get_edge_data(*edge)["processstream_data"]
@@ -129,7 +129,7 @@ def _add_positions(graph, flowsheet_size):
     while len(updated_nodes) < flowsheet_size:
         # While loop for as long as not all units have been updated with a position
         # Find all edges that leave the previously set node
-        original_edges = list(graph.out_edges(node))
+        original_edges = list(graph.out_edges(node, keys=True))
         # FOR RECYCLES: only considere edges that lead to nodes that don't have a position yet!
         # Copy all relevant edges to the list edges
         edges = []
@@ -256,11 +256,11 @@ def plot_flowsheet_nx(graph, plot_with_stream_labels, add_positions=True):
     if plot_with_stream_labels:
         nx.draw(graph, pos, with_labels=True, node_size=1600, font_size=13, node_color="#00b4d9")
         try:
-            labels = dict([((n1, n2),
+            labels = dict([((n1, n2, k),
                             "".join([d["processstream_name"], "\n N=", str(round(d["processstream_data"][0])),
                                      " mol/s\nT=", str(round(d["processstream_data"][1])), " K\nP=",
                                      str(round(d["processstream_data"][2])), " Pa"]))
-                           for n1, n2, d in graph.edges(data=True)])
+                           for n1, n2, k, d in graph.edges(keys=True, data=True)])
             nx.draw_networkx_edge_labels(graph, pos, edge_labels=labels, rotate=False, font_size=10)
 
         except KeyError:
@@ -345,7 +345,7 @@ def plot_flowsheet_pyflowsheet(graph, block=False, imagepath="flowsheet",  pfd_i
     # Connect all units
     if block:  # All ports are called 'In' or 'Out' --> makes it easier
         count = 1  # Count all streams for identifier
-        for edge in graph.out_edges(data=True):
+        for edge in graph.out_edges(data=True): # > This still works with MultiDiGraph but if there are multiple edges between the same nodes, the labels will stack on top of each other.
             unit_1 = unit_dict[edge[0]]
             unit_2 = unit_dict[edge[1]]
             stream_id = "stream-"+str(count)

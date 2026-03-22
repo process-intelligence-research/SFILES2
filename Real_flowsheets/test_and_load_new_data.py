@@ -33,6 +33,7 @@ class FlowsheetTests(unittest.TestCase):
             if i not in [68,92]: # 68, 92 assertion error
                 with open(f, "rb") as my_file:
                     G = pickle.load(my_file)
+                    G = nx.MultiDiGraph(G)
                 _node_names = list(G.nodes)
                 relabel_mapping = {}
                 for n in _node_names:
@@ -43,15 +44,15 @@ class FlowsheetTests(unittest.TestCase):
                     relabel_mapping[n] = _name +"-"+ _num
                 G = nx.relabel_nodes(G, relabel_mapping)
                 flowsheet = Flowsheet(OntoCapeConformity=True)
-                flowsheet.state = G
-                all_edges_1.append(list(flowsheet.state.edges))
+                flowsheet.create_from_nx(G)
+                all_edges_1.extend(list(flowsheet.state.edges))
                 flowsheet.convert_to_sfiles(version="v2", remove_hex_tags=True)
                 sfiles_1 = flowsheet.sfiles
                 all_sfiles1.append(sfiles_1)
                 all_sfiles3.append(re.sub(r"\{.*?\}", "",sfiles_1))
                 flowsheet.create_from_sfiles(overwrite_nx=True, merge_HI_nodes=False)
                 all_flowsheets.append(flowsheet)
-                all_edges_2.append(list(flowsheet.state.edges))
+                all_edges_2.extend(list(flowsheet.state.edges))
                 flowsheet.convert_to_sfiles(version="v2", remove_hex_tags=True)
                 sfiles_2=flowsheet.sfiles
                 all_sfiles2.append(sfiles_2)
@@ -68,7 +69,7 @@ class FlowsheetTests(unittest.TestCase):
         print("There are %d duplicates. They are filtered out in the file all_data.txt"%(len(all_sfiles1) - len(set(all_sfiles1))))
 
         print("Additionally, the following files are not loaded:",failures)
-
+        
         "Load the new data as SFILES and create train and dev set"
         print("Creating train and dev dataset")
         with open("Real_flowsheets/all_data.txt", "w") as f:
@@ -91,8 +92,8 @@ class FlowsheetTests(unittest.TestCase):
 
         Path("Real_flowsheets/flowsheet_objects").mkdir(parents=True, exist_ok=True)
         new_path = os.path.join(os.getcwd(),"Real_flowsheets/flowsheet_objects/Flowsheet_data.pkl")
-        filehandler = open(new_path, "wb") 
-        pickle.dump(all_flowsheets, filehandler)
+        with open(new_path, "wb") as filehandler: 
+            pickle.dump(all_flowsheets, filehandler)
         
 if __name__ == "__main__":
     unittest.main()
