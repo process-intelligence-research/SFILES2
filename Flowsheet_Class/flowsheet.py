@@ -706,7 +706,7 @@ class Flowsheet:
         flowsheet_wo_signals.remove_edges_from(edges_to_remove)
 
         # First get the names of the HEX we actually have to split:
-        hex_to_split = []
+        hex_to_split = {}
         for node_name, node_attrs in flowsheet_wo_signals.nodes(data=True):
             if heatexchanger in node_name and flowsheet_wo_signals.in_degree(node_name) > 1:  # Heat exchangers with more than 1 streams
                 edges_in = flowsheet_wo_signals.in_edges(node_name, data=True)
@@ -719,13 +719,13 @@ class Flowsheet:
                     #     f"out_edges: {edges_out}."
                     # )
                     continue
-                hex_to_split.append(node_name)
+                hex_to_split[node_name] = node_attrs
 
         nodes_to_remove = []    # > We'll remove nodes only at the end, to avoid issues with changing the size of the graph during iterations
         new_nodes = []
         new_edges = []
         new_edge_names = [] # Will be used to avoid adding the same edge twice.
-        for node_name in hex_to_split:
+        for node_name, node_attrs in hex_to_split.items():
             nodes_to_remove.append(node_name)   # > We'll make all changes at the very end.
             edges_in = flowsheet_wo_signals.in_edges(node_name, data=True)
             edges_out = flowsheet_wo_signals.out_edges(node_name, data=True)
