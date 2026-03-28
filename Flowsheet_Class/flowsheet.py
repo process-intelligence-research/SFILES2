@@ -147,6 +147,7 @@ class Flowsheet:
 
             # If current token is a node, search the connections that are associated with the node.
             if bool(re.match(pattern_node, token)):
+                current_node = token
                 step = 0
                 branches = 0
 
@@ -168,19 +169,49 @@ class Flowsheet:
                     # Cycle: next list element is a single digit or a multiple digit number of form %##.
                     elif bool(re.match(r"^[%_]?\d+", self.sfiles_list[token_idx + step])):
                         cyc_nr = re.findall(r"^[%_]?\d+", self.sfiles_list[token_idx + step])[0]
-                        cycles.append((cyc_nr, tags))
+                        cycles.append((cyc_nr, tags, current_node))
                         tags = []
 
                     # Branch opens. Looping through the branch until it is terminated.
                     elif self.sfiles_list[token_idx + step] == "[":
                         branches = 1
                         found = False
+                        branch_step = 0
                         while not (token_idx + step) == last_index:
                             step += 1
+                            branch_step += 1
                             if not found and bool(re.match(pattern_node, self.sfiles_list[token_idx + step])):
+                                assert branch_step == 1
                                 edges.append((token[1:-1], self.sfiles_list[token_idx + step][1:-1], {"tags": tags}))
                                 tags = []
                                 found = True
+                            # Cycle: next list element is a single digit or a multiple digit number of form %##.
+                            elif not found and bool(re.match(r"^[%_]?\d+", self.sfiles_list[token_idx + step])):
+                                # Particular case like (splt)[2]
+                                assert branch_step == 1 
+                                cyc_nr = re.findall(r"^[%_]?\d+", self.sfiles_list[token_idx + step])[0]
+                                cycles.append((cyc_nr, tags, current_node))
+                                tags = []
+                                found = True
+                            elif not found and self.sfiles_list[token_idx + step] == "&":
+                                # Special case like (splt)[&]
+                                # Run backwards through last operations, search for unit operations,
+                                # but ignore everything if its token in this or another incoming branch.
+                                break_while = False
+                                _ignore = 1
+                                for e in reversed(last_ops):
+                                    if e == "<&|":
+                                        _ignore -= 1
+                                    if e == "|" or e == "&|":
+                                        _ignore += 1
+                                    if not _ignore and bool(re.match(pattern_node, e)):
+                                        edges.append((token[1:-1], e[1:-1], {"tags": tags}))
+                                        tags = []
+                                        break
+                                if break_while:
+                                    break 
+                                found = True
+                                
                             # If next token in sfiles_list is '[', a branch inside a branch is present.
                             if self.sfiles_list[token_idx + step] == "[":
                                 branches += 1
@@ -191,6 +222,7 @@ class Flowsheet:
                             elif branches == 1 and self.sfiles_list[token_idx + step] == "]":
                                 branches -= 1
                                 tags = []
+                                assert found
                                 break
                             # Tags in SFILES v2 in branch (usually the first token after branching)
                             elif bool(re.match(r"{.*?}", self.sfiles_list[token_idx + step])):
@@ -199,6 +231,7 @@ class Flowsheet:
                                 # Branches needs to be 1 otherwise the tags of subbranches might be added
                                 if not bool(re.match(r"^[0-9]+$", self.sfiles_list[token_idx + step][1:-1])) \
                                         and branches == 1:
+                                    branch_step -= 1 # This will be necessary for finding the next unit in the sequence.
                                     tags.append(self.sfiles_list[token_idx + step][1:-1])
 
                     # New incoming branch.
@@ -251,9 +284,8 @@ class Flowsheet:
 
         for cycle_connection in cycles:
             # Determine index of cycle number in SFILES list and find the corresponding previous unit operation.
-            cycle_pos = self.sfiles_list.index(cycle_connection[0])
-            pre_op = list(filter(re.compile(pattern_node).match, self.sfiles_list[0: cycle_pos + 1]))[-1]
-
+            pre_op = cycle_connection[2]
+            
             # Search for the cycle destination ('<#' or '<_#') and add connection to unit operation that <# refers to.
             if "_" in cycle_connection[0]:
                 number = re.findall(r"\d+", cycle_connection[0])
@@ -673,60 +705,74 @@ class Flowsheet:
         edges_to_remove = [k for k, v in edge_information_signal.items() if v == ["not_next_unitop"]]
         flowsheet_wo_signals.remove_edges_from(edges_to_remove)
 
+        # First get the names of the HEX we actually have to split:
+        hex_to_split = []
+        for node_name, node_attrs in flowsheet_wo_signals.nodes(data=True):
+            if heatexchanger in node_name and flowsheet_wo_signals.in_degree(node_name) > 1:  # Heat exchangers with more than 1 streams
+                edges_in = flowsheet_wo_signals.in_edges(node_name, data=True)
+                edges_out = flowsheet_wo_signals.out_edges(node_name, data=True)
+                if len(edges_in) != len(edges_out):
+                    # > Warning suppressed because this is the desired behaviour.
+                    # warnings.warn(
+                    #     f"Skipping decoupling of heat exchanger {node_name}: Number of in_edges != out_edges."
+                    #     f"in_edges: {edges_in};"
+                    #     f"out_edges: {edges_out}."
+                    # )
+                    continue
+                hex_to_split.append(node_name)
+
         nodes_to_remove = []    # > We'll remove nodes only at the end, to avoid issues with changing the size of the graph during iterations
         new_nodes = []
         new_edges = []
-        for n, node_attrs in flowsheet_wo_signals.nodes(data=True):
-            if heatexchanger in n and flowsheet_wo_signals.in_degree(n) > 1:  # Heat exchangers with more than 1 streams
+        new_edge_names = [] # Will be used to avoid adding the same edge twice.
+        for node_name in hex_to_split:
+            nodes_to_remove.append(node_name)   # > We'll make all changes at the very end.
+            edges_in = flowsheet_wo_signals.in_edges(node_name, data=True)
+            edges_out = flowsheet_wo_signals.out_edges(node_name, data=True)
+            # Here we try to match the inlet with their corresponding outlet streams using the tags.
+            # (This works for tags of the form hot_in,hot_out,cold_in,cold_out,1_in,1_out, ...)
+            for in_edge in edges_in:
+                in_tag = Flowsheet.get_he_tag(in_edge, "in")
                 
-                edges_in = flowsheet_wo_signals.in_edges(n, data=True)
-                edges_out = flowsheet_wo_signals.out_edges(n, data=True)
-                if len(edges_in) != len(edges_out):
-                    warnings.warn(
-                        f"Skipping decoupling of heat exchanger {n}: Number of in_edges != out_edges."
-                        f"in_edges: {edges_in};"
-                        f"out_edges: {edges_out}."
-                    )
-                    continue
+                # > Now Loop on out_edges and find associated out_tag:
+                for out_edge in edges_out:
+                    out_tag = Flowsheet.get_he_tag(out_edge, "out")
+                    if out_tag == in_tag:
+                        # > We've found the associated out_tag to our in_tag !
+                        break
+                else:
+                    # > This means we didn't break from the for loop:
+                    raise RuntimeError(f"> Couldn't find out tag {in_tag}_out for heat exchanger {node_name}!\nin_edges: {edges_in},\nout_edges:{edges_out}")
                 
-                nodes_to_remove.append(n)   # > We'll make all changes at the very end.
+                # > Ok, so we've found the associated out_edge to the in_edge!
+                # > Let's add the new edges and nodes:
+                new_nodes.append((f"{node_name}/{in_tag}", node_attrs))             # hex-1 --> hex-1/1
                 
-                # Here we try to match the inlet with their corresponding outlet streams using the tags.
-                # (This works for tags of the form hot_in,hot_out,cold_in,cold_out,1_in,1_out, ...)
-                for in_edge in edges_in:
-                    in_tag = Flowsheet.get_he_tag(in_edge, "in")
-                    
-                    # > Now Loop on out_edges and find associated out_tag:
-                    for out_edge in edges_out:
-                        out_tag = Flowsheet.get_he_tag(out_edge, "out")
-                        if out_tag == in_tag:
-                            # > We've found the associated out_tag to our in_tag !
-                            break
-                    else:
-                        # This means we didn't break from the for loop:
-                        raise RuntimeError(f"> Couldn't find out tag {in_tag}_out for heat exchanger {n}!\nin_edges: {edges_in},\nout_edges:{edges_out}")
-                    
-                    # > Ok, so we've found the associated out_edge to the in_edge! 
-                    # > Let's add the new edges and nodes:
-                    new_nodes.append((f"{n}/{in_tag}", node_attrs))             # hex-1 --> hex-1/1
-                    
-                    # > ATTENTION WHEN CREATING NEW EDGES !
-                    # > Possible issue if the hex is connected to another hex or itself!
-                    if heatexchanger in in_edge[0]:
-                        extra_tag = Flowsheet.get_he_tag(in_edge, "out")
+                # > ATTENTION WHEN CREATING NEW EDGES !
+                # > Possible issue if the hex is connected to another hex or itself!
+                if in_edge[0] in hex_to_split:
+                    extra_tag = Flowsheet.get_he_tag(in_edge, "out")
+                    # We'll create the new edge depending on f"{in_edge[0]}/{extra_tag}"
+                    # even though we haven't yet created that new node:
+                    if f"{in_edge[0]}/{extra_tag} + {in_edge[1]}/{in_tag}" not in new_edge_names:
+                        # Only adding edge once to list (avoiding adding it twice as we will have a MultiDiGraph in the future):
+                        new_edge_names.append(f"{in_edge[0]}/{extra_tag} + {in_edge[1]}/{in_tag}")
                         new_edges.append(
                             (f"{in_edge[0]}/{extra_tag}", f"{in_edge[1]}/{in_tag}", in_edge[-1]))
-                    else:
-                        new_edges.append(
-                            (in_edge[0], f"{in_edge[1]}/{in_tag}", in_edge[-1]))
-                    
-                    if heatexchanger in out_edge[1]:
-                        extra_tag = Flowsheet.get_he_tag(out_edge, "in")
+                else:
+                    new_edges.append(
+                        (in_edge[0], f"{in_edge[1]}/{in_tag}", in_edge[-1]))
+                
+                # > Analogously for out_edges:
+                if out_edge[1] in hex_to_split:
+                    extra_tag = Flowsheet.get_he_tag(out_edge, "in")
+                    if f"{out_edge[0]}/{out_tag} + {out_edge[1]}/{extra_tag}" not in new_edge_names:
+                        new_edge_names.append(f"{out_edge[0]}/{out_tag} + {out_edge[1]}/{extra_tag}")
                         new_edges.append(
                             (f"{out_edge[0]}/{out_tag}", f"{out_edge[1]}/{extra_tag}", out_edge[-1]))
-                    else:
-                        new_edges.append(
-                            (f"{out_edge[0]}/{out_tag}", out_edge[1], out_edge[-1]))
+                else:
+                    new_edges.append(
+                        (f"{out_edge[0]}/{out_tag}", out_edge[1], out_edge[-1]))
         
         state_copy = self.state.copy()      # > Avoiding changing the state if an issue arises in the next lines 
         # Delete old nodes and associated edges first.
