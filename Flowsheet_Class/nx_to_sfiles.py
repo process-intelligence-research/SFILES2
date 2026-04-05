@@ -296,7 +296,6 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
             last_node = last_node_finder(sfiles_part)
             
             edge_key_list = list(flowsheet[last_node][current_node].keys())
-            # > Antonio: TODO:must test edge case in which we have multiple edges in this case!!!
             for edge_key in edge_key_list:
                 pos = position_finder(nodes_position_setoffs, last_node, sfiles_part, nodes_position_setoffs_cycle,
                                     cycle=True)
@@ -323,8 +322,6 @@ def dfs(visited, flowsheet, current_node, sfiles_part, nr_pre_visited, ranks, no
 
             # NOW we can handle edge_keys:
             edge_key_list = list(flowsheet[node2][current_node].keys())
-            # > Antonio: TODO:must test!!! is the order node2/current_node correct? I think so because inverse_special_edge=False.
-            # > Antonio: TODO:must test edge case in which we have multiple edges in this case!!!
             for edge_key in edge_key_list:
                 nr_pre_visited, special_edges, sfiles_part, sfiles = insert_cycle(nr_pre_visited, sfiles_part, sfiles,
                                                                                 special_edges, nodes_position_setoffs,

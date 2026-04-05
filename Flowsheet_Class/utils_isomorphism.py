@@ -1,3 +1,8 @@
+"""
+Defines function for comparing if two flowsheets are the same.
+This can be useful for debugging changes on large datasets.
+"""
+
 from typing import Tuple, Dict
 from copy import deepcopy
 from itertools import permutations, product
@@ -8,6 +13,17 @@ from networkx.algorithms.isomorphism import is_isomorphic
 from Flowsheet_Class.flowsheet import Flowsheet
 
 def edit_graph(flowsheet: Flowsheet):
+    """Prepares a Flowsheet object for the check_isomorphism function.
+
+    Creates 4 graphs, after merging and splitting heat integration (HI) nodes
+    twice (which is useful for also seeing if merging and splitting of HI nodes
+    is working correctly). Some attributes are added to the nodes for the 
+    isomorphism test.
+
+    For two flowsheet graphs to be isomorph, it is necessary that both their
+    coupled and decoupled versions be isomorph. This is because the HEX 
+    connections must be distinguished, but their numbering is arbitrary
+    """
     flowsheet.merge_HI_nodes()
     gm1 = deepcopy(flowsheet.state)
     flowsheet.split_HI_nodes()
@@ -26,10 +42,17 @@ def edit_graph(flowsheet: Flowsheet):
     return graph_list
 
 def node_match(n1_attrs: Dict, n2_attrs: Dict):
+    """
+    Checks whether two nodes are analogous (same unit operation type)
+    """
     return n1_attrs["_type"] == n2_attrs["_type"]
 
 def edge_match(edge_dict_1: Dict[int, Dict], edge_dict_2: Dict[int, Dict]):
-    
+    """
+    Checks if two sets of edges are analogous (identical tags, except 
+    for "he" tags, which are dealt with indirectly, by checking if both 
+    merged and split HI nodes are identical)
+    """
     def compare_edge_tags(attrs1: Dict, attrs2: Dict):
         # We don't check for HEX 1 or 2 tags because the numerical
         # value of the tag is arbitrary. However, integration HEXs
@@ -108,15 +131,22 @@ def edge_match(edge_dict_1: Dict[int, Dict], edge_dict_2: Dict[int, Dict]):
             # Must return False
             return False
 
-def check_isomorphism(f1, f2):
+def check_isomorphism(f1: Flowsheet, f2: Flowsheet, check_HI_nodes: bool = True):
+    """
+    Checks if two flowsheets f1 and f2 are isomorphic.
+    Optionally, also checks if merging and splitting the 
+    heat integration (HI) nodes twice changed anything.
+    """
     gm1a, gs1a, gm1b, gs1b = edit_graph(f1)
-    gm2a, gs2a, gm2b, gs2b = edit_graph(f2)
+    gm2a, gs2a, _, _ = edit_graph(f2)
     if not is_isomorphic(gm1a, gm2a, node_match=node_match, edge_match=edge_match):
         return False
     if not is_isomorphic(gs1a, gs2a, node_match=node_match, edge_match=edge_match):
         return False
-    if not is_isomorphic(gm1b, gm2b, node_match=node_match, edge_match=edge_match):
-        return False
-    if not is_isomorphic(gs1b, gs2b, node_match=node_match, edge_match=edge_match):
-        return False
+    if check_HI_nodes:
+        # Checking if merging and splitting is working:
+        if not is_isomorphic(gm1a, gm1b, node_match=node_match, edge_match=edge_match):
+            return False
+        if not is_isomorphic(gs1a, gs1b, node_match=node_match, edge_match=edge_match):
+            return False
     return True
