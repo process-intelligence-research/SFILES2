@@ -930,10 +930,7 @@ def insert_signal_connections(edge_infos_signal, sfiles, nodes_position_setoffs_
         # Reset node_position_setoffs since they are manipulated by position_finder.
         nodes_position_setoffs_cycle = nodes_position_setoffs_cycle_temp.copy()
         nodes_position_setoffs = nodes_position_setoffs_temp.copy()
-
-        # TODO: Check if this works!
-        #nodes_position_setoffs_cycle = nodes_position_setoffs_cycle.fromkeys(nodes_position_setoffs_cycle, 0)
-        #nodes_position_setoffs = nodes_position_setoffs_cycle.fromkeys(nodes_position_setoffs, 0)
+        
         for k, v in special_edges.items():
             if v == "&":
                 nodes_position_setoffs[k[1]] = 0

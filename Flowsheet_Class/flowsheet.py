@@ -195,14 +195,22 @@ class Flowsheet:
                             step += 1
                             branch_step += 1
                             if not found and bool(re.match(pattern_node, self.sfiles_list[token_idx + step])):
-                                assert branch_step == 1
+                                if branch_step != 1:
+                                    raise AssertionError(
+                                        f"Error in create_from_sfiles: found = False but branch_step != 1." 
+                                        f"Check if the SFILES correctly describes your process."
+                                    )
                                 edges.append((token[1:-1], self.sfiles_list[token_idx + step][1:-1], {"tags": tags}))
                                 tags = []
                                 found = True
                             # Cycle: next list element is a single digit or a multiple digit number of form %##.
                             elif not found and bool(re.match(r"^[%_]?\d+", self.sfiles_list[token_idx + step])):
                                 # Particular case like (splt)[2]
-                                assert branch_step == 1 
+                                if branch_step != 1:
+                                    raise AssertionError(
+                                        f"Error in create_from_sfiles: found = False but branch_step != 1." 
+                                        f"Check if the SFILES correctly describes your process."
+                                    )
                                 cyc_nr = re.findall(r"^[%_]?\d+", self.sfiles_list[token_idx + step])[0]
                                 cycles.append((cyc_nr, tags, current_node))
                                 tags = []
@@ -211,7 +219,6 @@ class Flowsheet:
                                 # Special case like (splt)[&]
                                 # Run backwards through last operations, search for unit operations,
                                 # but ignore everything if its token in this or another incoming branch.
-                                break_while = False
                                 _ignore = 1
                                 for e in reversed(last_ops):
                                     if e == "<&|":
@@ -222,8 +229,6 @@ class Flowsheet:
                                         edges.append((token[1:-1], e[1:-1], {"tags": tags}))
                                         tags = []
                                         break
-                                if break_while:
-                                    break 
                                 found = True
                                 
                             # If next token in sfiles_list is '[', a branch inside a branch is present.
@@ -236,7 +241,12 @@ class Flowsheet:
                             elif branches == 1 and self.sfiles_list[token_idx + step] == "]":
                                 branches -= 1
                                 tags = []
-                                assert found
+                                if not found:
+                                    raise AssertionError(
+                                        "Error in create_from_sfiles: found the end of the branch"
+                                        "without having found downstream unit."
+                                        "Check if the SFILES correctly describes your process."
+                                    )
                                 break
                             # Tags in SFILES v2 in branch (usually the first token after branching)
                             elif bool(re.match(r"{.*?}", self.sfiles_list[token_idx + step])):
@@ -721,9 +731,10 @@ class Flowsheet:
         def check_and_add_tag(edge_attrs: Dict, port: int, edge_type: Literal["in", "out"]) -> bool:
             # > Sanity checks: Check whether we don't have invalid in-tags:
             tags = [tag for tag in edge_attrs["tags"]["he"] if edge_type in tag]
-            # TODO: add clearer AssertionError messages
-            assert len(tags) <= 1
-            if len(tags) == 1: assert tags[0] == f"{port}_{edge_type}"
+            if len(tags) > 1:
+                raise AssertionError(f'Too many HEX tags of type "{edge_type}" in this edge (edge attributes: {edge_attrs}).')
+            if len(tags) == 1 and tags[0] != f"{port}_{edge_type}":
+                raise AssertionError(f'Unexpected HEX tag: {tags[0]}, expected {port}_{edge_type} (edge attributes: {edge_attrs}).')
             # > Add tag to edge_attrs if it is not there:
             if f"{port}_{edge_type}" not in edge_attrs["tags"]["he"]:
                 edge_attrs["tags"]["he"].append(f"{port}_{edge_type}")
@@ -747,7 +758,8 @@ class Flowsheet:
             
             # > Verify that each node only has one in edge and get its attributes:
             edges_in = list(state_copy.in_edges(n1, keys=True, data=True))
-            assert len(edges_in) == 1
+            if len(edges_in) != 1:
+                raise AssertionError(f"Decoupled hex {n1} has more than one in_edge: {edges_in}.\nCannot merge HI nodes.")
             edge_in = edges_in[0]
             upstream_unit, _, edge_key, edge_in_attrs = edge_in
             # > Sanity checks: Check whether we don't have invalid in-tags and add tag if necessary:
@@ -764,7 +776,8 @@ class Flowsheet:
 
             # > Analogous for out_edges:
             edges_out = list(state_copy.out_edges(n1, keys=True, data=True))
-            assert len(edges_out) == 1
+            if len(edges_out) != 1:
+                raise AssertionError(f"Decoupled hex {n1} has more than one out_edge: {edges_out}.\nCannot merge HI nodes.")
             edge_out = edges_out[0]
             _, downstream_unit, edge_key, edge_out_attrs = edge_out
             edge_out_attrs = check_and_add_tag(edge_out_attrs, port, "out")
@@ -784,7 +797,6 @@ class Flowsheet:
         # > Now handle node attributes if they are different:
         new_nodes = list()
         for new_node_name, node_attr_dict in node_attrs_map.items():
-            assert not Flowsheet.is_decoupled_hex(new_node_name) # > Sanity check
             # Let's check if the node attributes match:
             node_attrs = dict()
             for key, value in node_attr_dict.items():
