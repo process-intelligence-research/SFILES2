@@ -849,23 +849,7 @@ class Flowsheet:
         if self.use_single_signal_stream_old:
             edges_to_remove = [k for k, v in edge_information_signal.items() if v != ["next_unitop"]]  # > same
         flowsheet_wo_signals.remove_edges_from(edges_to_remove) # > alright, it is good that the MultiDiGraph keys are present here.
-
-        # First get the names of the HEX we actually have to split:
-        hex_to_split = []
-        for node_name, node_attrs in flowsheet_wo_signals.nodes(data=True):
-            if heatexchanger in node_name and flowsheet_wo_signals.in_degree(node_name) > 1:  # Heat exchangers with more than 1 streams
-                edges_in = flowsheet_wo_signals.in_edges(node_name, keys=True, data=True)
-                edges_out = flowsheet_wo_signals.out_edges(node_name, keys=True, data=True)
-                if len(edges_in) != len(edges_out):
-                    # > Warning suppressed because this is the desired behaviour.
-                    # warnings.warn(
-                    #     f"Skipping decoupling of heat exchanger {node_name}: Number of in_edges != out_edges."
-                    #     f"in_edges: {edges_in};"
-                    #     f"out_edges: {edges_out}."
-                    # )
-                    continue
-                hex_to_split.append(node_name)
-
+        
         # First get the names of the HEX we actually have to split:
         hex_to_split = {}
         for node_name, node_attrs in flowsheet_wo_signals.nodes(data=True):
