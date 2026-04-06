@@ -3,7 +3,7 @@ __pycache__/
 .vscode
 dist/
 .venv/
-.ipynb_checkpoints
+.ipynb_checkpoints/
 
 # Project specific directories
 plots/

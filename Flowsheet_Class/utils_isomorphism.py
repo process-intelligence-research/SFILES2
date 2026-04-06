@@ -12,8 +12,30 @@ from networkx.algorithms.isomorphism import is_isomorphic
 
 from Flowsheet_Class.flowsheet import Flowsheet
 
-def edit_graph(flowsheet: Flowsheet):
+def edit_graph(graph: nx.MultiDiGraph):
+    """Helper for isomorphism test.
+
+    Adds a "_type" attribute for each node of the graph for the
+    graph isomorphism test. It is the name of the node without the number
+    (example: hex-1 --> hex). If it is a control unit, we also include
+    the contents after the "/" (example: C-1/LC --> C/LC).
+    """
+    for node, attrs in graph.nodes(data=True):
+        if "/" in node:
+            if not node.split("/")[1].isnumeric():
+                # Control structure, we must distinguish it:
+                attrs["_type"]= node.split("-")[0] + "/" + node.split("/")[1]
+            else:
+                attrs["_type"] = node.split("-")[0]
+        else:
+            attrs["_type"] = node.split("-")[0]
+    return graph
+
+def edit_flowsheet(flowsheet: Flowsheet):
     """Prepares a Flowsheet object for the check_isomorphism function.
+    NOTE: This modified the Flowsheet in-place. If you need to make sure
+    you keep the original version, copy it first (``from copy import deepcopy;
+    backup = deecopy(flowsheet)``) 
 
     Creates 4 graphs, after merging and splitting heat integration (HI) nodes
     twice (which is useful for also seeing if merging and splitting of HI nodes
@@ -36,9 +58,7 @@ def edit_graph(flowsheet: Flowsheet):
     
     graph_list = [gm1, gs1, gm2, gs2]
     for g in graph_list:
-        for node, attrs in g.nodes(data=True):
-            attrs["_name"]=node
-            attrs["_type"]=node.split("-")[0]
+        g = edit_graph(g)
     return graph_list
 
 def node_match(n1_attrs: Dict, n2_attrs: Dict):
@@ -131,14 +151,21 @@ def edge_match(edge_dict_1: Dict[int, Dict], edge_dict_2: Dict[int, Dict]):
             # Must return False
             return False
 
+def check_graph_isomorphism(g1: nx.MultiDiGraph, g2: nx.MultiDiGraph):
+    """
+    Checks if two networkx.MultiDiGraphs are isomorphic, using 
+    the node_match and edge_match functions defined in this module.
+    """
+    return is_isomorphic(g1, g2, node_match=node_match, edge_match=edge_match)
+
 def check_isomorphism(f1: Flowsheet, f2: Flowsheet, check_HI_nodes: bool = True):
     """
     Checks if two flowsheets f1 and f2 are isomorphic.
     Optionally, also checks if merging and splitting the 
     heat integration (HI) nodes twice changed anything.
     """
-    gm1a, gs1a, gm1b, gs1b = edit_graph(f1)
-    gm2a, gs2a, _, _ = edit_graph(f2)
+    gm1a, gs1a, gm1b, gs1b = edit_flowsheet(f1)
+    gm2a, gs2a, _, _ = edit_flowsheet(f2)
     if not is_isomorphic(gm1a, gm2a, node_match=node_match, edge_match=edge_match):
         return False
     if not is_isomorphic(gs1a, gs2a, node_match=node_match, edge_match=edge_match):

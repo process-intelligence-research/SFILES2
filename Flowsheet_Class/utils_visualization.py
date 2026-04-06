@@ -104,6 +104,9 @@ def _add_positions(graph, flowsheet_size):
     # and their successor nodes, starting with the first feeds. To come back to those later, they and their
     # position are saved in lists
     save_nodes = [feed for feed in graph.nodes if graph.in_degree(feed) == 0]
+    if len(save_nodes) == 0:
+        # > Cyclic process, add an arbitrary starting node (hoping it doesn't leave the process (like a prod node), which is unlikely if the process is a cycle)
+        save_nodes.append(list(graph.nodes())[0])
     save_pos = []
     y_coordinates = []  # List to save all y coordinates --> no nodes above each other
     # Initialize a list for saving all nodes that have been updated
@@ -133,10 +136,13 @@ def _add_positions(graph, flowsheet_size):
         # FOR RECYCLES: only considere edges that lead to nodes that don't have a position yet!
         # Copy all relevant edges to the list edges
         edges = []
-        for k in range(len(original_edges)):
-            if original_edges[k][1] not in updated_nodes:
-                edges.append(original_edges[k])
-
+        seen_successors = set()
+        for edge in original_edges:
+            successor = edge[1]
+            if successor not in updated_nodes and successor not in seen_successors:
+                edges.append(edge)
+                seen_successors.add(successor)
+        
         # Set position of the following node(s) depending on their number
         if len(edges) == 1:
             # Only one next node

@@ -425,7 +425,7 @@ class Flowsheet:
             if "signal" in tags:
                 if len(tags["signal"]) > 0:
                     if not len(tags["signal"]) == 1:
-                        raise AssertionError(f"> Unexpected: edge {edge} has more than 1 signal tag: {tags["signal"]}")
+                        raise AssertionError(f"> Unexpected: edge {edge} has more than 1 signal tag: {tags['signal']}")
                     if tags["signal"][0] == "next_unitop":
                         edges_w_next_unitop_signal.append(edge)
         # > Check if it is the only edge:
