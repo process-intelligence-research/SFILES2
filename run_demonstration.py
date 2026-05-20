@@ -35,11 +35,22 @@ else:
 
 
 # Check SFILES v2 notation for a heat exchanger with 2 streams
-G = nx.DiGraph()
-G.add_nodes_from([("HeatExchanger-0", {"pos": [550, 75.0]}), ("DistillationSystem-1", {"pos": [500, 250]}), ("RawMaterial-1", {"pos": [350, 250]}), ("RawMaterial-2", {"pos": [150, 150]}), ("OutputProduct-1", {"pos": [350, 50]})])
-G.add_edges_from([("HeatExchanger-0", "DistillationSystem-1", {"labels": "Stream 13", "tags":{"he": ["hot_out"], "col": ["bin"]}}),("HeatExchanger-0", "OutputProduct-1", {"labels": "Stream 13", "tags":{"he": ["2_out"], "col": []}}), ("RawMaterial-1", "HeatExchanger-0", {"labels": "Stream 13", "tags":{"he": ["hot_in"], "col": []}}),("RawMaterial-2", "HeatExchanger-0", {"labels": "Stream 13", "tags":{"he": ["2_in"], "col": []}})])
+G = nx.MultiDiGraph()
+G.add_nodes_from([
+    ("HeatExchanger-0", {"pos": [550, 75.0]}),
+    ("DistillationSystem-1", {"pos": [500, 250]}),
+    ("RawMaterial-1", {"pos": [350, 250]}),
+    ("RawMaterial-2", {"pos": [150, 150]}),
+    ("OutputProduct-1", {"pos": [350, 50]})]
+)
+G.add_edges_from([
+    ("HeatExchanger-0", "DistillationSystem-1", {"labels": "Stream 13", "tags":{"he": ["hot_out"], "col": ["bin"]}}),
+    ("HeatExchanger-0", "OutputProduct-1", {"labels": "Stream 13", "tags":{"he": ["2_out"], "col": []}}),
+    ("RawMaterial-1", "HeatExchanger-0", {"labels": "Stream 13", "tags":{"he": ["hot_in"], "col": []}}),
+    ("RawMaterial-2", "HeatExchanger-0", {"labels": "Stream 13", "tags":{"he": ["2_in"], "col": []}})
+])
 flowsheet_4=Flowsheet(OntoCapeConformity=True)
-flowsheet_4.state=G
+flowsheet_4.create_from_nx(G)
 flowsheet_4.convert_to_sfiles(version="v2")
 sfiles_1 = flowsheet_4.sfiles
 print(sfiles_1)

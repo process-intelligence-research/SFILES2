@@ -2,7 +2,7 @@ import re
 import warnings
 
 import networkx as nx
-from typing import Literal
+from typing import Literal, Dict
 
 from .nx_to_sfiles import nx_to_SFILES
 from .OntoCape_SFILES_mapping import OntoCape_SFILES_map
@@ -39,22 +39,32 @@ class Flowsheet:
         Parsed SFILES string input.
     xml_file: str
         Path to xml file that can be read with nx.read_graphml method.
+    use_single_signal_stream_old: str
+        For backwards compatibility. If True, control units which have a material AND
+        signal stream connection to the same unit will only have one networkx edge 
+        associated to both connections ("next_unitop" signal tag must be specified in the edge).
+        If False, the graph will have two edges between these nodes. One for the material and 
+        another for the signal edge (the latter having a signal tag).
     """
 
-    def __init__(self, OntoCapeConformity=False, sfiles_in=None, sfiles_list_in=None, xml_file=None):
+    def __init__(
+            self, OntoCapeConformity=False, sfiles_in=None, sfiles_list_in=None, xml_file=None,
+            use_single_signal_stream_old: bool = False
+        ):
         self.OntoCapeConform = OntoCapeConformity
         self.sfiles = sfiles_in
         self.sfiles_list = sfiles_list_in
         self.flowsheet_SFILES_names = None
-        self.state = nx.DiGraph()  # Default initialization of the flowsheet as a nx Graph
+        self.state = nx.MultiDiGraph()  # Default initialization of the flowsheet as a nx Graph
+        self.use_single_signal_stream_old = use_single_signal_stream_old
         if xml_file:  # ToDo mapping xml digitization group -> OntoCape vocab
-            self.state = nx.read_graphml(xml_file)
+            self.state = nx.read_graphml(xml_file, force_multigraph=True)
         elif sfiles_in:
             self.create_from_sfiles()
         elif sfiles_list_in:
             self.create_from_sfiles()
 
-    def add_unit(self, unique_name:str=None, **kwargs):
+    def add_unit(self, unique_name: str = None, **kwargs):
         """This method adds a new unit as a new node to the existing flowsheet-graph.
 
         Parameter
@@ -66,8 +76,8 @@ class Flowsheet:
         """
 
         self.state.add_node(unique_name, **kwargs)
-
-    def add_stream(self, node1, node2, tags={"he": [], "col": []}, **kwargs):
+    
+    def add_stream(self, node1, node2, tags: dict = None, key = None, **kwargs):
         """Method adds a stream as an edge to the existing flowsheet graph, thereby connecting two unit operations
         (nodes).
 
@@ -78,13 +88,17 @@ class Flowsheet:
         node2: str
             Unique name of the node with the unit where the stream is fed into.
         tags: dict
-            Tags for that stream, of following form: {'he':[],'col':[]}, i.e heat exchanger related tags
+            Tags for that stream, of following form: {'he':[],'col':[]}, i.e., heat exchanger related tags
             (hot_in,cold_out, ...) and column related tags (t_out,b_out, ...).
+        key: hashable identifier, optional
+            From networkx's MultiDiGraph documentation: "Used to distinguish multiedges between a pair of nodes."
         kwargs:
             Parameters of new stream as edge attributes.
         """
+        if tags is None:    # > Avoiding mutable default argument
+            tags = {"he": [], "col": []}
 
-        self.state.add_edge(node1, node2, tags=tags, **kwargs)
+        self.state.add_edge(node1, node2, key=key, tags=tags, **kwargs)
 
     def create_from_sfiles(self, sfiles_in="", overwrite_nx=False, merge_HI_nodes=True):
         """Function to read SFILES (parsed or unparsed) and creates units (without child objects) and streams. Result is
@@ -126,7 +140,7 @@ class Flowsheet:
         # Make sure we start with an empty graph, overwriting possible.
         if not nx.classes.is_empty(self.state):
             if overwrite_nx:
-                self.state = nx.DiGraph()
+                self.state = nx.MultiDiGraph()
             else:
                 raise ValueError("There already exists a nx graph. If you wish to override it, "
                                  "specify 'override_nx=True'")
@@ -147,6 +161,7 @@ class Flowsheet:
 
             # If current token is a node, search the connections that are associated with the node.
             if bool(re.match(pattern_node, token)):
+                current_node = token
                 step = 0
                 branches = 0
 
@@ -168,19 +183,54 @@ class Flowsheet:
                     # Cycle: next list element is a single digit or a multiple digit number of form %##.
                     elif bool(re.match(r"^[%_]?\d+", self.sfiles_list[token_idx + step])):
                         cyc_nr = re.findall(r"^[%_]?\d+", self.sfiles_list[token_idx + step])[0]
-                        cycles.append((cyc_nr, tags))
+                        cycles.append((cyc_nr, tags, current_node))
                         tags = []
 
                     # Branch opens. Looping through the branch until it is terminated.
                     elif self.sfiles_list[token_idx + step] == "[":
                         branches = 1
                         found = False
+                        branch_step = 0
                         while not (token_idx + step) == last_index:
                             step += 1
+                            branch_step += 1
                             if not found and bool(re.match(pattern_node, self.sfiles_list[token_idx + step])):
+                                if branch_step != 1:
+                                    raise AssertionError(
+                                        f"Error in create_from_sfiles: found = False but branch_step != 1." 
+                                        f"Check if the SFILES correctly describes your process."
+                                    )
                                 edges.append((token[1:-1], self.sfiles_list[token_idx + step][1:-1], {"tags": tags}))
                                 tags = []
                                 found = True
+                            # Cycle: next list element is a single digit or a multiple digit number of form %##.
+                            elif not found and bool(re.match(r"^[%_]?\d+", self.sfiles_list[token_idx + step])):
+                                # Particular case like (splt)[2]
+                                if branch_step != 1:
+                                    raise AssertionError(
+                                        f"Error in create_from_sfiles: found = False but branch_step != 1." 
+                                        f"Check if the SFILES correctly describes your process."
+                                    )
+                                cyc_nr = re.findall(r"^[%_]?\d+", self.sfiles_list[token_idx + step])[0]
+                                cycles.append((cyc_nr, tags, current_node))
+                                tags = []
+                                found = True
+                            elif not found and self.sfiles_list[token_idx + step] == "&":
+                                # Special case like (splt)[&]
+                                # Run backwards through last operations, search for unit operations,
+                                # but ignore everything if its token in this or another incoming branch.
+                                _ignore = 1
+                                for e in reversed(last_ops):
+                                    if e == "<&|":
+                                        _ignore -= 1
+                                    if e == "|" or e == "&|":
+                                        _ignore += 1
+                                    if not _ignore and bool(re.match(pattern_node, e)):
+                                        edges.append((token[1:-1], e[1:-1], {"tags": tags}))
+                                        tags = []
+                                        break
+                                found = True
+                                
                             # If next token in sfiles_list is '[', a branch inside a branch is present.
                             if self.sfiles_list[token_idx + step] == "[":
                                 branches += 1
@@ -191,6 +241,12 @@ class Flowsheet:
                             elif branches == 1 and self.sfiles_list[token_idx + step] == "]":
                                 branches -= 1
                                 tags = []
+                                if not found:
+                                    raise AssertionError(
+                                        "Error in create_from_sfiles: found the end of the branch"
+                                        "without having found downstream unit."
+                                        "Check if the SFILES correctly describes your process."
+                                    )
                                 break
                             # Tags in SFILES v2 in branch (usually the first token after branching)
                             elif bool(re.match(r"{.*?}", self.sfiles_list[token_idx + step])):
@@ -199,6 +255,7 @@ class Flowsheet:
                                 # Branches needs to be 1 otherwise the tags of subbranches might be added
                                 if not bool(re.match(r"^[0-9]+$", self.sfiles_list[token_idx + step][1:-1])) \
                                         and branches == 1:
+                                    branch_step -= 1 # This will be necessary for finding the next unit in the sequence.
                                     tags.append(self.sfiles_list[token_idx + step][1:-1])
 
                     # New incoming branch.
@@ -251,9 +308,8 @@ class Flowsheet:
 
         for cycle_connection in cycles:
             # Determine index of cycle number in SFILES list and find the corresponding previous unit operation.
-            cycle_pos = self.sfiles_list.index(cycle_connection[0])
-            pre_op = list(filter(re.compile(pattern_node).match, self.sfiles_list[0: cycle_pos + 1]))[-1]
-
+            pre_op = cycle_connection[2]
+            
             # Search for the cycle destination ('<#' or '<_#') and add connection to unit operation that <# refers to.
             if "_" in cycle_connection[0]:
                 number = re.findall(r"\d+", cycle_connection[0])
@@ -263,7 +319,13 @@ class Flowsheet:
                         cycle_op = self.sfiles_list[cycle_tgt - k]
                         edges_wo_tags = [x[0:2] for x in edges]
                         if (pre_op[1:-1], cycle_op[1:-1]) in edges_wo_tags:
-                            edges.append((pre_op[1:-1], cycle_op[1:-1], {"tags": "next_unitop"}))
+                            if not self.use_single_signal_stream_old:
+                                # > New default behaviour:
+                                edges.append((pre_op[1:-1], cycle_op[1:-1], {"tags": "next_unitop"}))
+                            else:
+                                # > Backwards compatibility:
+                                index = edges_wo_tags.index((pre_op[1:-1], cycle_op[1:-1]))
+                                edges[index] = (pre_op[1:-1], cycle_op[1:-1], {"tags": "next_unitop"})
                         else:
                             edges.append((pre_op[1:-1], cycle_op[1:-1], {"tags": "not_next_unitop"}))
                         break
@@ -302,7 +364,22 @@ class Flowsheet:
         elif merge_HI_nodes:
             self.merge_HI_nodes()
 
-    def create_from_nx(self, initial_flowsheet):
+    @staticmethod
+    def convert_to_multidigraph(initial_flowsheet: nx.DiGraph) -> nx.MultiDiGraph:
+        if not isinstance(initial_flowsheet, nx.MultiDiGraph):
+            try:
+                og_type = type(initial_flowsheet)
+                initial_flowsheet = nx.MultiDiGraph(initial_flowsheet)
+                warnings.warn(f"CONVERTED initial_flowsheet TO nx.MultiDiGraph (original type: {og_type}). Attention: this conversion was done inplace!")
+            except Exception as e:
+                print(
+                    f"Tried to create_from_nx with invalid type: {type(initial_flowsheet)}\n"
+                    f"Flowsheet graphs are of nx.MultiDiGraph (at least nx.DiGraph must be passed)."
+                )
+                raise e
+        return initial_flowsheet
+
+    def create_from_nx(self, initial_flowsheet: nx.MultiDiGraph):
         """Method to initialize the flowsheet from an already existing nx-Graph.
 
         Parameters
@@ -311,9 +388,59 @@ class Flowsheet:
             Already existing networkx-Graph, default case: initialized with one feed-node ('IO-1'),
             an unprocessed-node ('X-1') and a connecting edge with stream data.
         """
+        self.state = Flowsheet.convert_to_multidigraph(initial_flowsheet)
+        self.signal_connectivity_backwards_compatibility()
 
-        self.state = initial_flowsheet
+    def signal_connectivity_backwards_compatibility(self):
+        """Checks if the Flowsheet's Graph was *initialized* using the old formatting
+        for signal connections, and adds extra edges if necessary (not self.use_single_signal_stream_old).
 
+        Originally, if a control unit (e.g. C-1) had its material outlet stream connected to 
+        another unit (e.g. v-1) but ALSO had a signal connection to that same unit (v-1), this
+        had to be specified as a single networkx edge, like so:
+        
+        ``('C-2/FC', 'v-2', {'tags': {'signal': ['next_unitop']}})``
+
+        Now, this limitation has been solved, and the two edges should be specified
+        distinctively:
+        
+        ``('C-2/FC', 'v-2') # Material stream``
+
+        ``('C-2/FC', 'v-2', {'tags': {'signal': ['next_unitop']}}) # Signal connection``
+        
+        For backwards compatibility, this function checks if only the signal stream has
+        been specified, and adds the material stream. 
+        """
+        if self.use_single_signal_stream_old:
+            return # Nothing to do
+        # > If we are NOT using the old_signal_format, then
+        # > we want to have two separate streams for material and signal connections.
+        # > In this case, let's check if the flowsheet was specified according to the
+        # > old format and adapt the state accordingly.
+
+        edge_tag_dict = nx.get_edge_attributes(self.state, "tags") # {(n1, n2, key): {"he": [], ... "signal": [...]}}
+        # > Get edges with the next_unitop signal:
+        edges_w_next_unitop_signal = []
+        for edge, tags in edge_tag_dict.items():
+            if "signal" in tags:
+                if len(tags["signal"]) > 0:
+                    if not len(tags["signal"]) == 1:
+                        raise AssertionError(f"> Unexpected: edge {edge} has more than 1 signal tag: {tags['signal']}")
+                    if tags["signal"][0] == "next_unitop":
+                        edges_w_next_unitop_signal.append(edge)
+        # > Check if it is the only edge:
+        for edge in edges_w_next_unitop_signal:
+            n1, n2, key = edge
+            if len(self.state[n1][n2]) == 1:
+                # It is, let's add another one:
+                self.state.add_edge(n1, n2, key = None)
+                warnings.warn(
+                    f"Fixed graph: added one extra (material) edge between nodes {n1} and {n2}.\n"
+                    f"If you would like to only have one graph edge between {n1} and {n2}"
+                    f" (associated to both material and signal streams), initialize the"
+                    f" Flowsheet object with use_single_signal_stream_old=True."
+                )
+    
     def convert_to_sfiles(self, version="v2", remove_hex_tags=True, canonical=True):
         """Method to convert the flowsheet nx graph to string representation SFILES. Returns an SFILES string and a
         parsed list of the SFILES tokens.
@@ -325,6 +452,8 @@ class Flowsheet:
         remove_hex_tags: bool
             Whether to show heat exchanger tags in SFILES v2.
         """
+        # > Next line avoids issues in case state was set manually as a DiGraph:
+        self.create_from_nx(self.state)
 
         if self.OntoCapeConform:
             self.map_Ontocape_to_SFILES()  # sets self.flowsheet_SFILES_names
@@ -333,7 +462,10 @@ class Flowsheet:
             # in hex-#/# notation
             self.split_HI_nodes()
             self.flowsheet_SFILES_names = self.state.copy()
-        self.sfiles_list, self.sfiles = nx_to_SFILES(self.flowsheet_SFILES_names, version, remove_hex_tags, canonical)
+        self.sfiles_list, self.sfiles = nx_to_SFILES(
+            self.flowsheet_SFILES_names, version, remove_hex_tags, canonical,
+            use_single_signal_stream_old=self.use_single_signal_stream_old
+        )
 
     def create_random_flowsheet(self, add_sfiles=True):
         """This methods creates a random flowsheet. The specification for the random flowsheet is created in a separate
@@ -399,6 +531,8 @@ class Flowsheet:
         table_units:
             Table with all unit information.
         """
+        # > Next line avoids issues in case state was set manually as a DiGraph:
+        self.create_from_nx(self.state)
 
         fig = None
         table_streams = None
@@ -448,20 +582,20 @@ class Flowsheet:
 
     def split_dictionary(self, input_dict, chunk_size):
         """Helper function that returns sliced dictionaries.
-
+        
         Parameters
         ----------
         input_dict: dict
             Dictionary to be chunked.
         chunk_size: int
             Chunk size.
-
+        
         Returns
         -------
         res: list
             List of chunked dictionaries.
         """
-
+        
         res = []
         new_dict = {}
         for k, v in input_dict.items():
@@ -471,7 +605,7 @@ class Flowsheet:
                 res.append(new_dict)
                 new_dict = {k: v}
         res.append(new_dict)
-
+        
         return res
 
     def SFILES_parser(self):
@@ -501,6 +635,8 @@ class Flowsheet:
             If true, merges heat integrated hex nodes into one node and creates connectivity tags, so it is possible to
             split nodes again later.
         """
+        # > Next line avoids issues in case state was set manually as a DiGraph:
+        self.create_from_nx(self.state)
 
         SFILES_node_names = list(self.state.nodes)
         relabel_mapping = {}
@@ -559,93 +695,132 @@ class Flowsheet:
         tag = type_tags[0].split(f"_{edge_type}")[0]  # > ["1_in"] -> "1"
         return tag
     
+    @staticmethod
+    def is_decoupled_hex(node_name: str) -> bool:
+        """Quick check for whether a node is a decoupled integration heat exchanger (by only checking its name).
+        
+        Simply:
+        
+        .. code-block:: python
+
+            return \
+                (("hex" in node_name) or ("HeatExchanger" in node_name)) \
+            and "/" in node_name \
+            and not bool(re.match(r".*/[A-Z]+", node_name))  # 1. is hex?, 2. potentially decoupled? 3. confirmed decoupled.
+
+        Parameters
+        ----------
+        node_name: str
+            The name of the node.
+        
+        Returns
+        -------
+        True if it is, False otherwise.
+
+        """
+        return \
+            (("hex" in node_name) or ("HeatExchanger" in node_name)) \
+        and "/" in node_name \
+        and not bool(re.match(r".*/[A-Z]+", node_name))  # 1. is hex?, 2. potentially decoupled? 3. confirmed decoupled.
+
     def merge_HI_nodes(self):
         """For non-ontocape conform SFILES merge heat integrated hex nodes into one node and creating connectivity tags,
         so it is possible to split nodes again later.
         """
-        
-        relabel_mapping = {}
-        create_tags_map = {}
-        node_attrs_map = {}
+
+        def check_and_add_tag(edge_attrs: Dict, port: int, edge_type: Literal["in", "out"]) -> bool:
+            # > Sanity checks: Check whether we don't have invalid in-tags:
+            tags = [tag for tag in edge_attrs["tags"]["he"] if edge_type in tag]
+            if len(tags) > 1:
+                raise AssertionError(f'Too many HEX tags of type "{edge_type}" in this edge (edge attributes: {edge_attrs}).')
+            if len(tags) == 1 and tags[0] != f"{port}_{edge_type}":
+                raise AssertionError(f'Unexpected HEX tag: {tags[0]}, expected {port}_{edge_type} (edge attributes: {edge_attrs}).')
+            # > Add tag to edge_attrs if it is not there:
+            if f"{port}_{edge_type}" not in edge_attrs["tags"]["he"]:
+                edge_attrs["tags"]["he"].append(f"{port}_{edge_type}")
+            return edge_attrs
+
+        relabel_mapping = dict()
+        create_tags_map = dict()
+        node_attrs_map = dict()
         state_copy = self.state.copy()      # > So we don't alter the state if an error happens.
         # > List nodes which we want to merge:
-        for n, node_attrs in state_copy.nodes(data=True):
-            if (("hex" in n) or ("HeatExchanger" in n)) \
-            and "/" in n \
-            and not bool(re.match(r".*/[A-Z]+", n)):  
-                relabel_mapping[n] = n.split(sep="/")[0]    # > {"hex-1/2": "hex-1"}
-                create_tags_map[n] = n.split(sep="/")[1]    # > {"hex-1/2": "2"}
-                node_attrs_map[n] = node_attrs              # > {"hex-1/2": {}}
-            
+        for node_name, node_attrs in state_copy.nodes(data=True):
+            if Flowsheet.is_decoupled_hex(node_name):
+                relabel_mapping[node_name] = node_name.split(sep="/")[0]    # > {"hex-1/2": "hex-1"}
+                create_tags_map[node_name] = node_name.split(sep="/")[1]    # > {"hex-1/2": "2"}
+                node_attrs_map[node_name]  = node_attrs                     # > {"hex-1/2": {...}}
+        
         nodes_to_remove = list(relabel_mapping.keys())      # > ["hex-1/1", "hex-1/2", ...]
-        new_edges = []
-        new_nodes = []
+        edge_dict = dict()                          # > Will be useful for handling edge attributes and repeated entries 
         for n1, n2 in relabel_mapping.items():      # > n1 = "hex-1/2", n2 = "hex-1"
-            counter = create_tags_map[n1]           # counter = "2"
+            port = create_tags_map[n1]              # > port = "2"
             
             # > Verify that each node only has one in edge and get its attributes:
-            edges_in = list(state_copy.in_edges(n1, data=True))
-            assert len(edges_in) == 1
+            edges_in = list(state_copy.in_edges(n1, keys=True, data=True))
+            if len(edges_in) != 1:
+                raise AssertionError(f"Decoupled hex {n1} has more than one in_edge: {edges_in}.\nCannot merge HI nodes.")
             edge_in = edges_in[0]
-            edge_in_attrs = edge_in[-1]
-            if f"{counter}_in" not in edge_in_attrs["tags"]["he"]:
-                edge_in_attrs["tags"]["he"].append(f"{counter}_in")
+            upstream_unit, _, edge_key, edge_in_attrs = edge_in
+            # > Sanity checks: Check whether we don't have invalid in-tags and add tag if necessary:
+            # > NOTE: If upstream_unit is also a decoupled HEX, its tag will be added to the same
+            # > dict later in the loop. This is possible because we will be touching a reference to
+            # > the same python object. 
+            edge_in_attrs = check_and_add_tag(edge_in_attrs, port, "in")
+            # > Add entry to edge_dict dictionary. This is useful for avoiding adding the same edge twice
+            # > (which could happend using list.append(). No need to check if it already exists as the
+            # > dictionary size won't change and we won't be changing the entry since the edge_attrs will
+            # > be pointing to the same python object:
+            dict_entry = (upstream_unit, n1, edge_key)
+            edge_dict[dict_entry] = edge_in_attrs
 
-            # > Verify that each node only has one out edge and get its attributes:
-            edges_out = list(state_copy.out_edges(n1, data=True))
-            assert len(edges_out) == 1
+            # > Analogous for out_edges:
+            edges_out = list(state_copy.out_edges(n1, keys=True, data=True))
+            if len(edges_out) != 1:
+                raise AssertionError(f"Decoupled hex {n1} has more than one out_edge: {edges_out}.\nCannot merge HI nodes.")
             edge_out = edges_out[0]
-            edge_out_attrs = edge_out[-1]
-            if f"{counter}_out" not in edge_out_attrs["tags"]["he"]:
-                edge_out_attrs["tags"]["he"].append(f"{counter}_out")
+            _, downstream_unit, edge_key, edge_out_attrs = edge_out
+            edge_out_attrs = check_and_add_tag(edge_out_attrs, port, "out")
+            dict_entry = (n1, downstream_unit, edge_key)
+            edge_dict[dict_entry] = edge_out_attrs
             
-            # Remove old node and delete old edges + create new node if it does not exist and edges.
-            if n2 not in new_nodes:    
-                new_nodes.append(n2)
-                node_attrs_map[n2] = {n1: node_attrs_map[n1]}
+            # > Flag new node for creation if not yet in the list.
+            # > Must also handle NODE attributes, in case the user has
+            # > created the decoupled HEXs manually, rather than with split_HI_nodes:
+            if n2 not in node_attrs_map:    
+                node_attrs_map[n2] = {n1: node_attrs_map[n1]} # node_attrs_map["hex-1"] = {"hex-1/2": {...}}
+                del node_attrs_map[n1] # > This will simplify our life later
             else:
-                # > Add this entry to the node attributes.
-                # > Let's check if it these attributes are equal to the attributes
-                # > a previous node (e.g., if the attributes of hex-1/1 are the same
-                # > as those for hex-1/2):
-                for key, value in node_attrs_map[n2].items():   # > Looping through node_attrs_map["hex-1"]
-                    if value == node_attrs_map[n1]:             # > node_attrs_map["hex-1"]["hex-1/1"] == node_attrs_map["hex-1/2"]
-                        node_attrs_map[f"{key}, {n1}"] = node_attrs_map[n1]     # > In that case, we'll create entry node_attrs_map["hex-1"]["hex-1/1, hex-1/2"]
-                        del node_attrs_map[key] # and delete node_attrs_map["hex-1"]["hex-1/1"]
-                        # > note we can't have node_attrs_map["hex-1"][ ["hex-1/1", ...] ] because lists can't be dictionary keys.
-                        # > Later, we'll verify if there is only one key for node_attrs_map["hex-1"]
-                        break                   
-                else:
-                    # > If we got here, then we didn't break from the for loop
-                    # > and the attributes are different from other the nodes'
-                    node_attrs_map[n2][n1] = node_attrs_map[n1]
-            
-            # > When creating new edges, must be careful if one of them is a decoupled hex too!
-            if (("hex" in edge_in[0]) or ("HeatExchanger" in edge_in[0])) \
-            and "/" in edge_in[0] \
-            and not bool(re.match(r".*/[A-Z]+", edge_in[0])):
-                new_edges.append(
-                    (edge_in[0].split("/")[0], n2, edge_in_attrs))
-            else:
-                new_edges.append(
-                    (edge_in[0], n2, edge_in_attrs))
-                
-            if (("hex" in edge_out[1]) or ("HeatExchanger" in edge_out[1])) \
-            and "/" in edge_out[1] \
-            and not bool(re.match(r".*/[A-Z]+", edge_out[1])):
-                new_edges.append(
-                    (n2, edge_out[1].split("/")[0], edge_out_attrs))
-            else:
-                new_edges.append(
-                    (n2, edge_out[1], edge_out_attrs))
+                node_attrs_map[n2][n1] = node_attrs_map[n1]
+                del node_attrs_map[n1] # > This will simplify our life later
         
+        # > Now handle node attributes if they are different:
+        new_nodes = list()
+        for new_node_name, node_attr_dict in node_attrs_map.items():
+            # Let's check if the node attributes match:
+            node_attrs = dict()
+            for key, value in node_attr_dict.items():
+                if len(node_attrs) == 0: # First node, initialize node_attrs:
+                    node_attrs.update(value)
+                    continue
+                if value != node_attrs:
+                    # In this case, the decoupled HEX's had different node attributes.
+                    # To avoid loss of information, we'll add them all (node_attrs = {"hex-1/1": {...(hex-1/1 attrs)}, "hex-1/2": {...(hex-1/2 attrs)}})
+                    node_attrs = node_attr_dict
+                    break
+            new_nodes.append((new_node_name, node_attrs))
+
+        # > Create list of new edges from edge_dict, taking care of decoupled hex names:
+        new_edges = []
+        for key, value in edge_dict.items():
+            n1, n2, _ = key
+            if Flowsheet.is_decoupled_hex(n1): n1 = n1.split("/")[0]
+            if Flowsheet.is_decoupled_hex(n2): n2 = n2.split("/")[0]
+            new_edges.append((n1, n2, value)) # > No need to enforce the edge_key 
+
+        # > First remove old nodes (which will already get rid of associated edges): 
         state_copy.remove_nodes_from(nodes_to_remove)
-        # Before adding new nodes, let's handle the node attributes:
-        for node in new_nodes:
-            if len(node_attrs_map[node]) == 1:
-                key = list(node_attrs_map[node])[0]
-                node_attrs_map[node] = node_attrs_map[node][key]
-        new_nodes = [(node, node_attrs_map[node]) for node in new_nodes]
+        # > Add new nodes and edges:
         state_copy.add_nodes_from(new_nodes)
         state_copy.add_edges_from(new_edges)
         self.state = state_copy
@@ -667,66 +842,82 @@ class Flowsheet:
 
         # Signal edges have to be removed otherwise out_degree of HX may not match in_degree.
         flowsheet_wo_signals = self.state.copy()
-        edge_information = nx.get_edge_attributes(self.state, "tags")
+        edge_information = nx.get_edge_attributes(self.state, "tags") # > With MultiDiGraph change, edge_information is now {(node1, node2, key): tags}
         edge_information_signal = {k: self.flatten(v["signal"]) for k, v in edge_information.items() if
-                                   "signal" in v.keys() if v["signal"]}
-        edges_to_remove = [k for k, v in edge_information_signal.items() if v == ["not_next_unitop"]]
-        flowsheet_wo_signals.remove_edges_from(edges_to_remove)
+                                   "signal" in v.keys() if v["signal"]} # > alright, we don't play with the keys here
+        edges_to_remove = [k for k, v in edge_information_signal.items() if v != []]  # > same
+        if self.use_single_signal_stream_old:
+            edges_to_remove = [k for k, v in edge_information_signal.items() if v != ["next_unitop"]]  # > same
+        flowsheet_wo_signals.remove_edges_from(edges_to_remove) # > alright, it is good that the MultiDiGraph keys are present here.
+        
+        # First get the names of the HEX we actually have to split:
+        hex_to_split = {}
+        for node_name, node_attrs in flowsheet_wo_signals.nodes(data=True):
+            if heatexchanger in node_name and flowsheet_wo_signals.in_degree(node_name) > 1:  # Heat exchangers with more than 1 streams
+                edges_in = flowsheet_wo_signals.in_edges(node_name, data=True)
+                edges_out = flowsheet_wo_signals.out_edges(node_name, data=True)
+                if len(edges_in) != len(edges_out):
+                    # > Warning suppressed because this is the desired behaviour.
+                    # warnings.warn(
+                    #     f"Skipping decoupling of heat exchanger {node_name}: Number of in_edges != out_edges."
+                    #     f"in_edges: {edges_in};"
+                    #     f"out_edges: {edges_out}."
+                    # )
+                    continue
+                hex_to_split[node_name] = node_attrs
 
         nodes_to_remove = []    # > We'll remove nodes only at the end, to avoid issues with changing the size of the graph during iterations
         new_nodes = []
         new_edges = []
-        for n, node_attrs in flowsheet_wo_signals.nodes(data=True):
-            if heatexchanger in n and flowsheet_wo_signals.in_degree(n) > 1:  # Heat exchangers with more than 1 streams
+        new_edge_names = [] # Will be used to avoid adding the same edge twice.
+        for node_name, node_attrs in hex_to_split.items():
+            nodes_to_remove.append(node_name)   # > We'll make all changes at the very end.
+            edges_in = flowsheet_wo_signals.in_edges(node_name, keys=True, data=True)
+            edges_out = flowsheet_wo_signals.out_edges(node_name, keys=True, data=True)
+            # Here we try to match the inlet with their corresponding outlet streams using the tags.
+            # (This works for tags of the form hot_in,hot_out,cold_in,cold_out,1_in,1_out, ...)
+            for in_edge in edges_in:
+                in_tag = Flowsheet.get_he_tag(in_edge, "in")
                 
-                edges_in = flowsheet_wo_signals.in_edges(n, data=True)
-                edges_out = flowsheet_wo_signals.out_edges(n, data=True)
-                if len(edges_in) != len(edges_out):
-                    warnings.warn(
-                        f"Skipping decoupling of heat exchanger {n}: Number of in_edges != out_edges."
-                        f"in_edges: {edges_in};"
-                        f"out_edges: {edges_out}."
-                    )
-                    continue
+                # > Now Loop on out_edges and find associated out_tag:
+                for out_edge in edges_out:
+                    out_tag = Flowsheet.get_he_tag(out_edge, "out")
+                    if out_tag == in_tag:
+                        # > We've found the associated out_tag to our in_tag !
+                        break
+                else:
+                    # > This means we didn't break from the for loop:
+                    raise RuntimeError(f"> Couldn't find out tag {in_tag}_out for heat exchanger {node_name}!\nin_edges: {edges_in},\nout_edges:{edges_out}")
                 
-                nodes_to_remove.append(n)   # > We'll make all changes at the very end.
+                # > Ok, so we've found the associated out_edge to the in_edge!
+                # > Let's add the new edges and nodes:
+                new_nodes.append((f"{node_name}/{in_tag}", node_attrs))             # hex-1 --> hex-1/1
                 
-                # Here we try to match the inlet with their corresponding outlet streams using the tags.
-                # (This works for tags of the form hot_in,hot_out,cold_in,cold_out,1_in,1_out, ...)
-                for in_edge in edges_in:
-                    in_tag = Flowsheet.get_he_tag(in_edge, "in")
-                    
-                    # > Now Loop on out_edges and find associated out_tag:
-                    for out_edge in edges_out:
-                        out_tag = Flowsheet.get_he_tag(out_edge, "out")
-                        if out_tag == in_tag:
-                            # > We've found the associated out_tag to our in_tag !
-                            break
-                    else:
-                        # This means we didn't break from the for loop:
-                        raise RuntimeError(f"> Couldn't find out tag {in_tag}_out for heat exchanger {n}!\nin_edges: {edges_in},\nout_edges:{edges_out}")
-                    
-                    # > Ok, so we've found the associated out_edge to the in_edge! 
-                    # > Let's add the new edges and nodes:
-                    new_nodes.append((f"{n}/{in_tag}", node_attrs))             # hex-1 --> hex-1/1
-                    
-                    # > ATTENTION WHEN CREATING NEW EDGES !
-                    # > Possible issue if the hex is connected to another hex or itself!
-                    if heatexchanger in in_edge[0]:
-                        extra_tag = Flowsheet.get_he_tag(in_edge, "out")
+                # > ATTENTION WHEN CREATING NEW EDGES !
+                # > Possible issue if the hex is connected to another hex or itself!
+                if in_edge[0] in hex_to_split:
+                    extra_tag = Flowsheet.get_he_tag(in_edge, "out")
+                    # We'll create the new edge depending on f"{in_edge[0]}/{extra_tag}"
+                    # even though we haven't yet created that new node:
+                    if f"{in_edge[0]}/{extra_tag} + {in_edge[1]}/{in_tag}" not in new_edge_names:
+                        # Only adding edge once to list (avoiding adding it twice as we have a MultiDiGraph):
+                        new_edge_names.append(f"{in_edge[0]}/{extra_tag} + {in_edge[1]}/{in_tag}")
                         new_edges.append(
                             (f"{in_edge[0]}/{extra_tag}", f"{in_edge[1]}/{in_tag}", in_edge[-1]))
-                    else:
-                        new_edges.append(
-                            (in_edge[0], f"{in_edge[1]}/{in_tag}", in_edge[-1]))
-                    
-                    if heatexchanger in out_edge[1]:
-                        extra_tag = Flowsheet.get_he_tag(out_edge, "in")
+                else:
+                    new_edges.append(
+                        (in_edge[0], f"{in_edge[1]}/{in_tag}", in_edge[-1]))
+                
+                # > Analogously for out_edges:
+                if out_edge[1] in hex_to_split:
+                    extra_tag = Flowsheet.get_he_tag(out_edge, "in")
+                    if f"{out_edge[0]}/{out_tag} + {out_edge[1]}/{extra_tag}" not in new_edge_names:
+                        new_edge_names.append(f"{out_edge[0]}/{out_tag} + {out_edge[1]}/{extra_tag}")
                         new_edges.append(
                             (f"{out_edge[0]}/{out_tag}", f"{out_edge[1]}/{extra_tag}", out_edge[-1]))
-                    else:
-                        new_edges.append(
-                            (f"{out_edge[0]}/{out_tag}", out_edge[1], out_edge[-1]))
+                else:
+                    new_edges.append(
+                        (f"{out_edge[0]}/{out_tag}", out_edge[1], out_edge[-1]))
         
         state_copy = self.state.copy()      # > Avoiding changing the state if an issue arises in the next lines 
         # Delete old nodes and associated edges first.
@@ -742,7 +933,8 @@ class Flowsheet:
         according to the he tags (edge attribute tags:{he:[]}). Uses the Ontocape_SFILES_mapping to set
         self.flowsheet_SFILES_names.
         """
-
+        # > Next line avoids issues in case state was set manually as a DiGraph:
+        self.create_from_nx(self.state)
         self.split_HI_nodes(OntoCapeNames=True)
 
         # Relabel from OntoCape to SFILES abbreviations.
@@ -799,7 +991,7 @@ class Flowsheet:
         nodes: list
             List of numbered node names.
         """
-
+        
         unit_counting = {}
         HI_hex = {}
 

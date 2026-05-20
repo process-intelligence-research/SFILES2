@@ -3,7 +3,11 @@ __pycache__/
 .vscode
 dist/
 .venv/
+.ipynb_checkpoints/
 
 # Project specific directories
 plots/
 Real_flowsheets/
+
+# Debugger output
+_debugger_output.txt
