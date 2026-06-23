@@ -81,6 +81,8 @@ These demonstrate SFILES 2.0 strings for a variety of PFDs and P\&IDs.
 
 This project is licensed under the [MIT License](LICENSE).
 
+Technische Universiteit Delft hereby disclaims all copyright interest in the program “SFILES2” written by Artur M. Schweidtmann. Paulien Herder, Dean of Applied Science
+
 ## Contact
 
 📧 [Contact](mailto:a.schweidtmann@tudelft.nl)
